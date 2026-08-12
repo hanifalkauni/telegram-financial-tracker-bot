@@ -1,20 +1,22 @@
-# Telegram AI Financial Tracker Bot (Commercial MVP PRD Context)
+# Telegram AI Financial Tracker Bot (Commercial MVP)
 
-Repository ini berisi dokumentasi spesifikasi produk (**PRD - Product Requirement Document**) terstruktur dan modular untuk **Telegram AI Financial Tracker Bot**.
+Repository ini berisi spesifikasi produk (**PRD - Product Requirement Document**) terstruktur dan modular untuk **Telegram AI Financial Tracker Bot**, bot Telegram berbasis AI komersial yang berfungsi sebagai asisten pencatat keuangan pribadi otomatis.
 
 ---
 
-## 📚 Master Index PRD Modules
+## 📚 Master Index & Documentation Structure
 
-| Modul | Deskripsi & Isi Utama | Link Dokumen |
-| :--- | :--- | :--- |
-| **01. Overview & Stack** | Ringkasan Project, Tech Stack, Arsitektur Webhook Vercel, & Environment Variables | [docs/01-overview-stack.md](docs/01-overview-stack.md) |
-| **02. Database Schema** | Skema PostgreSQL Supabase (`users`, `confirmation_codes`, `transactions`, `recurring_transactions`) & Script SQL DDL | [docs/02-database-schema.md](docs/02-database-schema.md) |
-| **03. Auth & Subscriptions** | Logika Free Trial (5x), Master Admin Code, Tiket `/subscribe` & `/reply`, Konfirmasi `/confirm` & 1-Tap Approval | [docs/03-auth-subscription.md](docs/03-auth-subscription.md) |
-| **04. AI Parsing & UI** | Schema JSON Prompt Gemini AI (Wallet & Financial Pillar 50/30/20), Vision OCR, & Inline Keyboard Confirmation | [docs/04-ai-parsing-ui.md](docs/04-ai-parsing-ui.md) |
-| **05. User Features** | Fitur Komersial MVP (`/status`, `/subscribe`, `/confirm`, `/rekap` Fleksibel, `/ratio` 50/30/20, `/insight`, `/rutin`, `/history`, `/export` CSV, `/budget`) | [docs/05-user-features.md](docs/05-user-features.md) |
-| **06. Admin System** | Dual Bot Architecture, One-Tap Approval Buttons, `/reply` (2-Way CRM), `/admin_stats`, `/users`, `/generate_code`, `/extend`, `/broadcast` | [docs/06-admin-system.md](docs/06-admin-system.md) |
-| **07. Error Standards** | System Global Error Handling, Admin Error Alert, Standar Stateless Vercel & Zona Waktu WIB | [docs/07-error-standards.md](docs/07-error-standards.md) |
+- 📘 **[context.md](context.md)** — Dokumentasi Konteks Utama (*Master PRD Document*).
+
+### 📑 PRD Modules (`docs/`):
+
+1. **[Module 01: Overview & Stack](docs/01-overview-stack.md)** — Ringkasan Project, Tech Stack, Arsitektur Webhook Vercel, & Environment Variables.
+2. **[Module 02: Database Schema](docs/02-database-schema.md)** — Skema PostgreSQL Supabase (`users`, `confirmation_codes`, `transactions`, `recurring_transactions`) & Script SQL DDL.
+3. **[Module 03: Auth & Subscriptions](docs/03-auth-subscription.md)** — Logika Free Trial (5x), Master Admin Code, Tiket `/subscribe` & `/reply`, Konfirmasi `/confirm` & 1-Tap Approval.
+4. **[Module 04: AI Parsing & UI](docs/04-ai-parsing-ui.md)** — Schema JSON Prompt Gemini AI (Wallet & Financial Pillar 50/30/20), Vision OCR, & Inline Keyboard Confirmation.
+5. **[Module 05: User Features](docs/05-user-features.md)** — Fitur Komersial MVP (`/status`, `/subscribe`, `/confirm`, `/rekap` Fleksibel, `/ratio` 50/30/20, `/insight`, `/rutin`, `/history`, `/export` CSV, `/budget`).
+6. **[Module 06: Admin System](docs/06-admin-system.md)** — Dual Bot Architecture, One-Tap Approval Buttons, `/reply` (2-Way CRM), `/admin_stats`, `/users`, `/generate_code`, `/extend`, `/broadcast`.
+7. **[Module 07: Error Standards](docs/07-error-standards.md)** — System Global Error Handling, Admin Error Alert, Standar Stateless Vercel & Zona Waktu WIB.
 
 ---
 
