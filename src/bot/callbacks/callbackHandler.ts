@@ -2,7 +2,7 @@ import { Context, Telegraf } from 'telegraf';
 import { supabase } from '../../db/supabase.js';
 import { checkUserAccess } from '../../services/accessControl.js';
 import { getRekapReport, formatRekapMessage } from '../../services/reportService.js';
-import { ParsedTransaction } from '../../services/gemini.js';
+import { ParsedTransaction, decodeCompactTx } from '../../services/gemini.js';
 import { formatRupiah } from '../../utils/timezone.js';
 import { ENV } from '../../config/env.js';
 import { sendErrorAlert } from '../../utils/errorAlert.js';
@@ -18,9 +18,8 @@ export async function handleCallbackQuery(ctx: Context) {
     if (data.startsWith('save_tx:')) {
       const access = await checkUserAccess(telegramId, ctx.from?.first_name);
 
-      const encodedPayload = data.replace('save_tx:', '');
-      const jsonStr = Buffer.from(encodedPayload, 'base64').toString('utf-8');
-      const parsed: ParsedTransaction = JSON.parse(jsonStr);
+      const compactPayload = data.replace('save_tx:', '');
+      const parsed: ParsedTransaction = decodeCompactTx(compactPayload);
 
       // Insert transaction into database
       await supabase.from('transactions').insert([

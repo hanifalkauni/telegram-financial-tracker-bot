@@ -6,7 +6,7 @@ export interface ParsedTransaction {
   type: 'EXPENSE' | 'INCOME';
   amount: number;
   category: string;
-  description: string;
+  description: string | null;
   wallet: 'CASH' | 'BANK' | 'E_WALLET';
   financial_pillar: 'NEEDS' | 'WANTS' | 'SAVINGS';
   date: string;
@@ -91,6 +91,50 @@ async function executeWithKeyFallback<T>(fn: (ai: GoogleGenAI, modelName: string
   }
 
   throw lastError || new Error('All configured Gemini API keys and models failed.');
+}
+
+export function encodeCompactTx(tx: ParsedTransaction): string {
+  const typeChar = tx.type === 'INCOME' ? 'I' : 'E';
+  const walletChar = tx.wallet === 'E_WALLET' ? 'E' : tx.wallet === 'BANK' ? 'B' : 'C';
+  const pillarChar = tx.financial_pillar === 'WANTS' ? 'W' : tx.financial_pillar === 'SAVINGS' ? 'S' : 'N';
+  const dateCompact = (tx.date || getWIBDateString()).replace(/-/g, '');
+  const categoryShort = (tx.category || 'Umum').replace(/\|/g, '').slice(0, 14);
+  const descShort = (tx.description || '').replace(/\|/g, '').slice(0, 12);
+
+  return `${typeChar}|${tx.amount}|${walletChar}|${pillarChar}|${dateCompact}|${categoryShort}|${descShort}`;
+}
+
+export function decodeCompactTx(compactStr: string): ParsedTransaction {
+  if (compactStr.startsWith('{') || compactStr.length > 60) {
+    try {
+      const jsonStr = Buffer.from(compactStr, 'base64').toString('utf-8');
+      return JSON.parse(jsonStr);
+    } catch {}
+  }
+
+  const [typeChar, amountStr, walletChar, pillarChar, dateCompact, category, description] = compactStr.split('|');
+
+  const type = typeChar === 'I' ? 'INCOME' : 'EXPENSE';
+  const wallet = walletChar === 'E' ? 'E_WALLET' : walletChar === 'B' ? 'BANK' : 'CASH';
+  const financial_pillar = pillarChar === 'W' ? 'WANTS' : pillarChar === 'S' ? 'SAVINGS' : 'NEEDS';
+
+  let date = getWIBDateString();
+  if (dateCompact && dateCompact.length === 8) {
+    const year = dateCompact.slice(0, 4);
+    const month = dateCompact.slice(4, 6);
+    const day = dateCompact.slice(6, 8);
+    date = `${year}-${month}-${day}`;
+  }
+
+  return {
+    type,
+    amount: parseFloat(amountStr) || 0,
+    wallet,
+    financial_pillar,
+    date,
+    category: category || 'Umum',
+    description: description || null,
+  };
 }
 
 export async function parseTransactionFromText(text: string): Promise<ParsedTransaction> {

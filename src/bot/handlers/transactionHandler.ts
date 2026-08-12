@@ -1,6 +1,6 @@
 import { Context } from 'telegraf';
 import { checkUserAccess, redeemMasterCode, redeemConfirmationCode } from '../../services/accessControl.js';
-import { parseTransactionFromText, parseTransactionFromImage } from '../../services/gemini.js';
+import { parseTransactionFromText, parseTransactionFromImage, encodeCompactTx } from '../../services/gemini.js';
 import { ENV } from '../../config/env.js';
 import { formatRupiah } from '../../utils/timezone.js';
 import { sendErrorAlert } from '../../utils/errorAlert.js';
@@ -43,9 +43,8 @@ export async function handleTextMessage(ctx: Context) {
     await ctx.sendChatAction('typing');
     const parsed = await parseTransactionFromText(text);
 
-    // Encode payload in base64 for stateless callback button
-    const payloadStr = JSON.stringify(parsed);
-    const encodedPayload = Buffer.from(payloadStr).toString('base64');
+    // Encode payload in compact format (max 60 bytes) for Telegram callback button
+    const compactPayload = encodeCompactTx(parsed);
 
     const pillarEmoji = parsed.financial_pillar === 'NEEDS' ? '🏠 NEEDS' : parsed.financial_pillar === 'WANTS' ? '🍿 WANTS' : '🏦 SAVINGS';
     const walletEmoji = parsed.wallet === 'E_WALLET' ? '📱 E_WALLET' : parsed.wallet === 'BANK' ? '🏦 BANK' : '💵 CASH';
@@ -68,7 +67,7 @@ Apakah data di atas sudah benar?`;
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '✅ Simpan', callback_data: `save_tx:${encodedPayload}` },
+            { text: '✅ Simpan', callback_data: `save_tx:${compactPayload}` },
             { text: '❌ Batal', callback_data: 'cancel_tx' },
           ],
         ],
@@ -109,8 +108,7 @@ export async function handlePhotoMessage(ctx: Context) {
     // Parse image via Gemini Multimodal OCR
     const parsed = await parseTransactionFromImage(imageBuffer, 'image/jpeg');
 
-    const payloadStr = JSON.stringify(parsed);
-    const encodedPayload = Buffer.from(payloadStr).toString('base64');
+    const compactPayload = encodeCompactTx(parsed);
 
     const pillarEmoji = parsed.financial_pillar === 'NEEDS' ? '🏠 NEEDS' : parsed.financial_pillar === 'WANTS' ? '🍿 WANTS' : '🏦 SAVINGS';
     const walletEmoji = parsed.wallet === 'E_WALLET' ? '📱 E_WALLET' : parsed.wallet === 'BANK' ? '🏦 BANK' : '💵 CASH';
@@ -133,7 +131,7 @@ Apakah data struk di atas sudah sesuai?`;
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '✅ Simpan Struk', callback_data: `save_tx:${encodedPayload}` },
+            { text: '✅ Simpan Struk', callback_data: `save_tx:${compactPayload}` },
             { text: '❌ Batal', callback_data: 'cancel_tx' },
           ],
         ],
