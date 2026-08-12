@@ -68,8 +68,13 @@ export default async function handler(req: IncomingMessage & { body?: any; query
       return sendHtml(400, '<h1>400 Bad Request</h1><p>No update payload received.</p>');
     }
 
+    // Parse URL search parameters robustly
+    const queryString = (req.url || '').split('?')[1] || '';
+    const urlParams = new URLSearchParams(queryString);
+    const isAdminRoute = urlParams.get('bot') === 'admin' || req.query?.bot === 'admin';
+
     // Determine whether update is for Admin Bot or User Bot
-    if (ENV.ADMIN_BOT_TOKEN && ENV.ADMIN_BOT_TOKEN !== ENV.BOT_TOKEN && req.query?.bot === 'admin') {
+    if (ENV.ADMIN_BOT_TOKEN && ENV.ADMIN_BOT_TOKEN !== ENV.BOT_TOKEN && isAdminRoute) {
       const adminBotInstance = createAdminBot(ENV.ADMIN_BOT_TOKEN);
       await adminBotInstance.handleUpdate(update);
     } else {
