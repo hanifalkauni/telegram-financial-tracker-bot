@@ -15,7 +15,7 @@ export async function handleStart(ctx: Context) {
 
   const access = await checkUserAccess(telegramId, name);
 
-  const startMessage = `👋 **Selamat datang di Financial Tracker Bot, ${name}!**
+  const startMessage = `👋 **Selamat datang di SetorSini AI Bot, ${name}!**
 
 Bot AI ini siap membantu Anda mencatat & mengelola keuangan pribadi secara otomatis.
 
@@ -24,7 +24,7 @@ Bot AI ini siap membantu Anda mencatat & mengelola keuangan pribadi secara otoma
 • Masa Aktif: ${access.user.active_until ? new Date(access.user.active_until).toLocaleDateString('id-ID') : access.user.is_activated ? 'Seumur Hidup (Lifetime)' : 'Free Trial'}
 
 💡 **Cara Menggunakan**:
-• Ketik pesan biasa: *"makan siang warteg 20rb gopay"*
+• Ketik pesan biasa: \`makan siang warteg 20rb gopay\`
 • Upload foto struk / nota belanja
 • Ketik /rekap untuk melihat ringkasan keuangan
 • Ketik /help untuk daftar command lengkap`;
@@ -71,7 +71,7 @@ export async function handleSubscribe(ctx: Context) {
   const args = ctx.message.text.split(' ').slice(1).join(' ').trim();
 
   if (!args) {
-    const subGuide = `🎁 **Permintaan Langganan Financial Tracker Bot**
+    const subGuide = `🎁 **Permintaan Langganan SetorSini AI Bot**
 
 Silakan pilih paket langganan dan hubungi Admin dengan mengetik:
 👉 \`/subscribe <pesan_anda>\`
@@ -81,7 +81,7 @@ Silakan pilih paket langganan dan hubungi Admin dengan mengetik:
 • 1 Tahun  : Rp 150.000
 • Lifetime : Rp 300.000
 
-*Contoh*: \`/subscribe Halo admin, saya ingin membeli paket 1 Bulan via QRIS\``;
+Contoh: \`/subscribe Halo admin, saya ingin membeli paket 1 Bulan via QRIS\``;
     await ctx.reply(subGuide, { parse_mode: 'Markdown' });
     return;
   }
@@ -92,7 +92,7 @@ Silakan pilih paket langganan dan hubungi Admin dengan mengetik:
 ━━━━━━━━━━━━━━━━━━━
 👤 **Nama**      : ${name} (@${ctx.from?.username || '-'})
 🆔 **Telegram ID**: \`${telegramId}\`
-💬 **Pesan**     : "${args}"
+💬 **Pesan**     : ${args}
 ━━━━━━━━━━━━━━━━━━━
 Untuk membalas pesan user ini, ketik:
 \`/reply ${telegramId} <pesan_anda>\``;
@@ -227,7 +227,7 @@ Rasio Aktif Anda: **${access.user.ratio_needs} / ${access.user.ratio_wants} / ${
 👉 **Cara Mengubah**:
 \`/ratio <needs> <wants> <savings>\`
 
-*Contoh*:
+Contoh:
 • \`/ratio 60 20 20\` (60% Kebutuhan, 20% Keinginan, 20% Tabungan)
 • \`/ratio 70 20 10\``, { parse_mode: 'Markdown' });
     return;
@@ -276,7 +276,6 @@ export async function handleRutin(ctx: Context) {
   const parts = ctx.message.text.trim().split(/\s+/);
 
   if (parts.length >= 5 && parts[1].toLowerCase() === 'tambah') {
-    // /rutin tambah EXPENSE 1500000 5 Uang Kos
     const type = parts[2].toUpperCase() === 'INCOME' ? 'INCOME' : 'EXPENSE';
     const amount = parseFloat(parts[3]);
     const dueDay = parseInt(parts[4], 10);
@@ -302,7 +301,6 @@ export async function handleRutin(ctx: Context) {
     return;
   }
 
-  // Fetch all active recurring transactions
   const { data: recs } = await supabase.from('recurring_transactions').select('*').eq('user_id', access.user.id).eq('is_active', true);
   const list = (recs as RecurringTransactionRecord[]) || [];
 
@@ -449,10 +447,10 @@ export async function handleHelp(ctx: Context) {
     return;
   }
 
-  const userHelp = `💡 **Panduan Penggunaan Financial Tracker Bot**
+  const userHelp = `💡 **Panduan Penggunaan SetorSini AI Bot**
 
 🎁 **Status Trial**: Gratis 5 transaksi awal.
-• Catat Teks: *"makan siang warteg 20rb gopay"*
+• Catat Teks: \`makan siang warteg 20rb gopay\`
 • Upload Foto Struk / Nota
 
 **Menu Command**:
