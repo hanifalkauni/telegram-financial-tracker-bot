@@ -50,6 +50,8 @@ const responseSchema = {
   required: ['type', 'amount', 'category', 'description', 'wallet', 'financial_pillar', 'date'],
 };
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function getGeminiInstances(): GoogleGenAI[] {
   const raw = ENV.GEMINI_API_KEY || '';
   const keys = raw.split(',').map((k) => k.trim()).filter((k) => k.length > 0);
@@ -61,20 +63,34 @@ function getGeminiInstances(): GoogleGenAI[] {
   return keys.map((key) => new GoogleGenAI({ apiKey: key }));
 }
 
-async function executeWithKeyFallback<T>(fn: (ai: GoogleGenAI) => Promise<T>): Promise<T> {
+async function executeWithKeyFallback<T>(fn: (ai: GoogleGenAI, modelName: string) => Promise<T>): Promise<T> {
   const instances = getGeminiInstances();
+  const models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
   let lastError: any = null;
 
   for (let i = 0; i < instances.length; i++) {
-    try {
-      return await fn(instances[i]);
-    } catch (error: any) {
-      console.warn(`[GEMINI KEY FALLBACK] Key ${i + 1}/${instances.length} rate limited or failed: ${error?.message || error}. Trying next key...`);
-      lastError = error;
+    for (const modelName of models) {
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          return await fn(instances[i], modelName);
+        } catch (error: any) {
+          lastError = error;
+          const errMsg = error?.message || String(error);
+          const is503 = errMsg.includes('503') || errMsg.includes('UNAVAILABLE') || errMsg.includes('high demand');
+
+          if (is503 && attempt < 2) {
+            console.warn(`[GEMINI 503 RETRY] Key ${i + 1}, Model ${modelName}, Attempt ${attempt} failed with 503. Retrying in 500ms...`);
+            await sleep(500);
+          } else {
+            console.warn(`[GEMINI FALLBACK] Key ${i + 1}, Model ${modelName} failed: ${errMsg}. Trying next model/key...`);
+            break;
+          }
+        }
+      }
     }
   }
 
-  throw lastError || new Error('All configured Gemini API keys failed.');
+  throw lastError || new Error('All configured Gemini API keys and models failed.');
 }
 
 export async function parseTransactionFromText(text: string): Promise<ParsedTransaction> {
@@ -84,9 +100,9 @@ Tanggal Hari Ini: ${currentDateStr} (WIB UTC+7). Jika pengguna tidak menyebutkan
 
 Input Teks Pengguna: "${text}"`;
 
-  return executeWithKeyFallback(async (ai) => {
+  return executeWithKeyFallback(async (ai, modelName) => {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: modelName,
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -109,9 +125,9 @@ export async function parseTransactionFromImage(imageBuffer: Buffer, mimeType: s
   const prompt = `Anda adalah OCR & vision parser AI keuangan. Ekstrak total nominal belanja, kategori, deskripsi, metode pembayaran, dan tanggal dari foto struk/nota belanja ini ke dalam format JSON terstruktur.
 Tanggal Hari Ini: ${currentDateStr} (WIB UTC+7). Jika tanggal tidak terdeteksi di struk, gunakan ${currentDateStr}.`;
 
-  return executeWithKeyFallback(async (ai) => {
+  return executeWithKeyFallback(async (ai, modelName) => {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: modelName,
       contents: [
         {
           inlineData: {
@@ -144,9 +160,9 @@ ${summaryData}
 
 Format jawaban dalam bentuk pesan Telegram dengan emoji yang menarik dan mudah dibaca. Maksimal 3 poin rekomendasi.`;
 
-  return executeWithKeyFallback(async (ai) => {
+  return executeWithKeyFallback(async (ai, modelName) => {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: modelName,
       contents: prompt,
       config: {
         temperature: 0.7,
