@@ -5,7 +5,14 @@ if (!ENV.SUPABASE_URL || !ENV.SUPABASE_KEY) {
   console.warn('[SUPABASE] Warning: SUPABASE_URL or SUPABASE_KEY is missing.');
 }
 
-export const supabase = createClient(ENV.SUPABASE_URL, ENV.SUPABASE_KEY);
+// Sanitize SUPABASE_URL to prevent "Invalid path specified in request URL"
+// Strips /rest/v1 or trailing slashes if accidentally included in Vercel Environment Variables
+const cleanSupabaseUrl = (ENV.SUPABASE_URL || '')
+  .trim()
+  .replace(/\/rest\/v1\/?$/i, '')
+  .replace(/\/+$/, '');
+
+export const supabase = createClient(cleanSupabaseUrl, ENV.SUPABASE_KEY?.trim() || '');
 
 export interface UserRecord {
   id: number;
