@@ -1,14 +1,56 @@
 import { Context, Telegraf } from 'telegraf';
 import { supabase, UserRecord } from '../../db/supabase.js';
 import { ENV } from '../../config/env.js';
+import { redeemMasterCode, getOrCreateUser } from '../../services/accessControl.js';
 import { sendErrorAlert } from '../../utils/errorAlert.js';
 
-async function checkIsAdmin(ctx: Context): Promise<boolean> {
+export async function checkIsAdmin(ctx: Context): Promise<boolean> {
   const telegramId = ctx.from?.id;
+  const name = ctx.from?.first_name || 'User';
   if (!telegramId) return false;
 
   const { data: user } = await supabase.from('users').select('is_admin').eq('telegram_id', telegramId).single();
-  return !!user?.is_admin;
+
+  if (!user || !user.is_admin) {
+    // Check if the user is typing the Master Code to activate Admin
+    if (ctx.message && 'text' in ctx.message && ctx.message.text.trim() === ENV.ADMIN_MASTER_CODE) {
+      const userRecord = await getOrCreateUser(telegramId, name);
+      const reply = await redeemMasterCode(userRecord);
+      await ctx.reply(reply, { parse_mode: 'Markdown' });
+      return true;
+    }
+
+    // Send access rejection message for non-admin chatting in Admin Bot
+    await ctx
+      .reply(
+        '⛔ **Akses Ditolak!**\n\nChat room ini khusus untuk Admin SetorSini. Anda tidak memiliki wewenang untuk mengakses bot ini.',
+        { parse_mode: 'Markdown' }
+      )
+      .catch(() => {});
+    return false;
+  }
+
+  return true;
+}
+
+export async function handleAdminStart(ctx: Context) {
+  if (!(await checkIsAdmin(ctx))) return;
+
+  const name = ctx.from?.first_name || 'Admin';
+  const startMsg = `👑 **Selamat Datang di Panel Admin SetorSini, ${name}!**
+
+Anda memiliki akses penuh untuk mengelola sistem, menerima notifikasi error, dan mengonfirmasi pembayaran pengguna.
+
+💡 **Menu Command Admin**:
+• /admin_stats : Lihat statistik bisnis & pengguna
+• /users : Lihat 20 daftar pengguna & Telegram ID
+• /generate_code 30 : Buat Kode Konfirmasi 30 Hari
+• /generate_code 0 : Buat Kode Konfirmasi Lifetime
+• /reply <telegram_id> <pesan> : Balas tiket pesan pengguna
+• /extend <telegram_id> <hari> : Perpanjang langganan user
+• /broadcast <pesan> : Kirim pesan pengumuman masal`;
+
+  await ctx.reply(startMsg, { parse_mode: 'Markdown' });
 }
 
 export async function handleAdminReply(ctx: Context) {
@@ -58,9 +100,7 @@ export async function handleGenerateCode(ctx: Context) {
     }
   }
 
-  // Generate random 8-character uppercase code
   const code = Math.random().toString(36).substring(2, 10).toUpperCase();
-
   const { data: adminUser } = await supabase.from('users').select('id').eq('telegram_id', ctx.from?.id).single();
 
   await supabase.from('confirmation_codes').insert([{

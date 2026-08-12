@@ -1,11 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { userBot, createBot } from '../src/bot/bot.js';
+import { userBot, createAdminBot } from '../src/bot/bot.js';
 import { ENV, validateEnv } from '../src/config/env.js';
 
 validateEnv();
 
 export default async function handler(req: IncomingMessage & { body?: any; query?: any }, res: ServerResponse & { status?: (code: number) => any; json?: (data: any) => any; send?: (data: any) => any }) {
-  // Helpers for Vercel Serverless environment compatibility
   const sendJson = (statusCode: number, payload: any) => {
     res.statusCode = statusCode;
     res.setHeader('Content-Type', 'application/json');
@@ -38,9 +37,9 @@ export default async function handler(req: IncomingMessage & { body?: any; query
       return sendText(400, 'No update payload received.');
     }
 
-    // Process update via userBot instance
+    // Determine whether update is for Admin Bot or User Bot
     if (ENV.ADMIN_BOT_TOKEN && ENV.ADMIN_BOT_TOKEN !== ENV.BOT_TOKEN && req.query?.bot === 'admin') {
-      const adminBotInstance = createBot(ENV.ADMIN_BOT_TOKEN);
+      const adminBotInstance = createAdminBot(ENV.ADMIN_BOT_TOKEN);
       await adminBotInstance.handleUpdate(update);
     } else {
       await userBot.handleUpdate(update);

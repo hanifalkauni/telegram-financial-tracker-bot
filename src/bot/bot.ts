@@ -17,6 +17,8 @@ import {
   handleHelp,
 } from './handlers/userCommands.js';
 import {
+  checkIsAdmin,
+  handleAdminStart,
   handleAdminReply,
   handleGenerateCode,
   handleAdminStats,
@@ -26,7 +28,7 @@ import {
 } from './handlers/adminCommands.js';
 import { handleCallbackQuery } from './callbacks/callbackHandler.js';
 
-export function createBot(token: string) {
+export function createUserBot(token: string) {
   const bot = new Telegraf(token);
 
   // Set Telegram Menu Commands
@@ -62,14 +64,6 @@ export function createBot(token: string) {
   bot.command('budget', handleBudget);
   bot.command('help', handleHelp);
 
-  // Admin Commands
-  bot.command('reply', handleAdminReply);
-  bot.command('generate_code', handleGenerateCode);
-  bot.command('admin_stats', handleAdminStats);
-  bot.command('users', handleUsersList);
-  bot.command('extend', handleExtendUser);
-  bot.command('broadcast', handleBroadcast);
-
   // Register Callbacks
   bot.on('callback_query', handleCallbackQuery);
 
@@ -86,4 +80,37 @@ export function createBot(token: string) {
   return bot;
 }
 
-export const userBot = createBot(ENV.BOT_TOKEN);
+export function createAdminBot(token: string) {
+  const bot = new Telegraf(token);
+
+  bot.telegram
+    .setMyCommands([
+      { command: 'start', description: 'Panel Utama Admin SetorSini' },
+      { command: 'admin_stats', description: 'Statistik pengguna & transaksi' },
+      { command: 'users', description: 'Lihat 20 daftar pengguna & Telegram ID' },
+      { command: 'generate_code', description: 'Buat Kode Konfirmasi (30/365/Lifetime)' },
+      { command: 'reply', description: 'Balas tiket pesan pengguna (/reply <id> <pesan>)' },
+      { command: 'extend', description: 'Perpanjang langganan user manual' },
+      { command: 'broadcast', description: 'Kirim pesan pengumuman masal' },
+    ])
+    .catch(() => {});
+
+  bot.command('start', handleAdminStart);
+  bot.command('reply', handleAdminReply);
+  bot.command('generate_code', handleGenerateCode);
+  bot.command('admin_stats', handleAdminStats);
+  bot.command('users', handleUsersList);
+  bot.command('extend', handleExtendUser);
+  bot.command('broadcast', handleBroadcast);
+
+  bot.on('callback_query', handleCallbackQuery);
+
+  // Reject unauthorized text messages
+  bot.on('text', async (ctx) => {
+    if (!(await checkIsAdmin(ctx))) return;
+  });
+
+  return bot;
+}
+
+export const userBot = createUserBot(ENV.BOT_TOKEN);
