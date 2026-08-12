@@ -56,6 +56,12 @@ CREATE TABLE IF NOT EXISTS recurring_transactions (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Enable Row Level Security (RLS) for all tables
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE confirmation_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE recurring_transactions ENABLE ROW LEVEL SECURITY;
+
 -- Indexing for Query Performance
 CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, transaction_date);
