@@ -129,26 +129,26 @@ export function formatRekapMessage(report: RekapReport, user: UserRecord): strin
 
   const budgetText = report.userBudget ? `${formatRupiah(report.totalExpense)} / ${formatRupiah(report.userBudget)} (${report.budgetPercentage}%)` : 'Belum diatur (/budget)';
 
-  return `📊 **Rekap Keuangan (${report.startDate} s/d ${report.endDate})**
+  return `📊 <b>Rekap Keuangan (${report.startDate} s/d ${report.endDate})</b>
 ━━━━━━━━━━━━━━━━━━━
-🏥 **Kesehatan**   : ${report.healthScoreText}
-📥 **Pemasukan**   : ${formatRupiah(report.totalIncome)}
-📤 **Pengeluaran** : ${formatRupiah(report.totalExpense)}
-💰 **Saldo Net**   : ${formatRupiah(report.netBalance)}
+🏥 <b>Kesehatan</b>   : ${report.healthScoreText}
+📥 <b>Pemasukan</b>   : ${formatRupiah(report.totalIncome)}
+📤 <b>Pengeluaran</b> : ${formatRupiah(report.totalExpense)}
+💰 <b>Saldo Net</b>   : ${formatRupiah(report.netBalance)}
 
-⚖️ **Rasio Keuangan (Target: ${user.ratio_needs}/${user.ratio_wants}/${user.ratio_savings}):**
+⚖️ <b>Rasio Keuangan (Target: ${user.ratio_needs}/${user.ratio_wants}/${user.ratio_savings}):</b>
 • 🏠 NEEDS   : ${formatRupiah(report.pillarBreakdown.NEEDS)} (${needsPct}% / Target ${user.ratio_needs}%)
 • 🍿 WANTS   : ${formatRupiah(report.pillarBreakdown.WANTS)} (${wantsPct}% / Target ${user.ratio_wants}%)
 • 🏦 SAVINGS : ${formatRupiah(report.netBalance)} (${savingsPct}% / Target ${user.ratio_savings}%)
 
-💳 **Rincian Per Dompet:**
+💳 <b>Rincian Per Dompet:</b>
 • 💵 Cash     : ${formatRupiah(report.walletBreakdown.CASH)}
 • 🏦 Bank     : ${formatRupiah(report.walletBreakdown.BANK)}
 • 📱 E-Wallet : ${formatRupiah(report.walletBreakdown.E_WALLET)}
 
-📊 **Breakdown Pengeluaran:**
+📊 <b>Breakdown Pengeluaran:</b>
 ${catText}
 
-🎯 **Status Budget**: ${budgetText}
+🎯 <b>Status Budget</b>: ${budgetText}
 ━━━━━━━━━━━━━━━━━━━`;
 }

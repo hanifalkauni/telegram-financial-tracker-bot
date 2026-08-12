@@ -1,5 +1,5 @@
 import { Context, Telegraf } from 'telegraf';
-import { supabase, TransactionRecord } from '../../db/supabase.js';
+import { supabase } from '../../db/supabase.js';
 import { checkUserAccess } from '../../services/accessControl.js';
 import { getRekapReport, formatRekapMessage } from '../../services/reportService.js';
 import { ParsedTransaction } from '../../services/gemini.js';
@@ -49,21 +49,21 @@ export async function handleCallbackQuery(ctx: Context) {
       if (access.user.monthly_budget && Number(access.user.monthly_budget) > 0) {
         const report = await getRekapReport(access.user.id, 'MONTH');
         if (report.budgetPercentage && report.budgetPercentage >= 100) {
-          budgetAlertText = `\n⚠️ **PERINGATAN BUDGET**: Total pengeluaran bulan ini (${formatRupiah(report.totalExpense)}) telah MELAMPAUI limit budget Anda!`;
+          budgetAlertText = `\n⚠️ <b>PERINGATAN BUDGET</b>: Total pengeluaran bulan ini (${formatRupiah(report.totalExpense)}) telah MELAMPAUI limit budget Anda!`;
         } else if (report.budgetPercentage && report.budgetPercentage >= 80) {
-          budgetAlertText = `\n⚠️ **PERINGATAN BUDGET**: Total pengeluaran bulan ini telah mencapai ${report.budgetPercentage}% dari limit budget Anda.`;
+          budgetAlertText = `\n⚠️ <b>PERINGATAN BUDGET</b>: Total pengeluaran bulan ini telah mencapai ${report.budgetPercentage}% dari limit budget Anda.`;
         }
       }
 
       await ctx.answerCbQuery('Transaksi Berhasil Disimpan!');
-      await ctx.editMessageText(`✅ **Transaksi Berhasil Disimpan!**\n\n📌 ${parsed.category} - ${formatRupiah(parsed.amount)}${trialNote}${budgetAlertText}`, { parse_mode: 'Markdown' });
+      await ctx.editMessageText(`✅ <b>Transaksi Berhasil Disimpan!</b>\n\n📌 ${parsed.category} - ${formatRupiah(parsed.amount)}${trialNote}${budgetAlertText}`, { parse_mode: 'HTML' });
       return;
     }
 
     // 2. Cancel Transaction Callback
     if (data === 'cancel_tx') {
       await ctx.answerCbQuery('Dibatalkan');
-      await ctx.editMessageText('❌ **Transaksi Dibatalkan.**', { parse_mode: 'Markdown' });
+      await ctx.editMessageText('❌ <b>Transaksi Dibatalkan.</b>', { parse_mode: 'HTML' });
       return;
     }
 
@@ -73,7 +73,7 @@ export async function handleCallbackQuery(ctx: Context) {
       await supabase.from('transactions').delete().eq('id', txId);
 
       await ctx.answerCbQuery('Transaksi Dihapus!');
-      await ctx.editMessageText('🗑️ **Transaksi telah berhasil dihapus.**', { parse_mode: 'Markdown' });
+      await ctx.editMessageText('🗑️ <b>Transaksi telah berhasil dihapus.</b>', { parse_mode: 'HTML' });
       return;
     }
 
@@ -86,7 +86,7 @@ export async function handleCallbackQuery(ctx: Context) {
 
       await ctx.answerCbQuery();
       await ctx.editMessageText(msgText, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
             [
@@ -101,7 +101,6 @@ export async function handleCallbackQuery(ctx: Context) {
 
     // 5. One-Tap Admin Approval Callback
     if (data.startsWith('approve_sub:')) {
-      // Format: approve_sub:<targetTelegramId>:<days>
       const parts = data.split(':');
       const targetTelegramId = parseInt(parts[1], 10);
       const days = parseInt(parts[2], 10);
@@ -125,10 +124,10 @@ export async function handleCallbackQuery(ctx: Context) {
       const userBot = new Telegraf(ENV.BOT_TOKEN);
       const durationLabel = newActiveUntil ? `s/d ${new Date(newActiveUntil).toLocaleDateString('id-ID')}` : 'Seumur Hidup (Lifetime)';
 
-      await userBot.telegram.sendMessage(targetTelegramId, `🎉 **Pembayaran Dikonfirmasi!**\n\n✅ Status Akun: Berlangganan Aktif\n📅 Masa Aktif: ${durationLabel}\n\nTerima kasih telah berlangganan Financial Tracker Bot!`, { parse_mode: 'Markdown' }).catch(() => {});
+      await userBot.telegram.sendMessage(targetTelegramId, `🎉 <b>Pembayaran Dikonfirmasi!</b>\n\n✅ Status Akun: Berlangganan Aktif\n📅 Masa Aktif: ${durationLabel}\n\nTerima kasih telah berlangganan SetorSini AI Bot!`, { parse_mode: 'HTML' }).catch(() => {});
 
       await ctx.answerCbQuery('User Approved!');
-      await ctx.editMessageText(`✅ **Approved!** Akun user \`${targetTelegramId}\` telah diaktifkan (${durationLabel}).`, { parse_mode: 'Markdown' });
+      await ctx.editMessageText(`✅ <b>Approved!</b> Akun user <code>${targetTelegramId}</code> telah diaktifkan (${durationLabel}).`, { parse_mode: 'HTML' });
       return;
     }
 
@@ -137,10 +136,10 @@ export async function handleCallbackQuery(ctx: Context) {
       const targetTelegramId = parseInt(data.split(':')[1], 10);
       const userBot = new Telegraf(ENV.BOT_TOKEN);
 
-      await userBot.telegram.sendMessage(targetTelegramId, `❌ **Pembayaran Tidak Dikonfirmasi**\n\nAdmin tidak dapat memverifikasi bukti pembayaran Anda. Silakan ketik /subscribe untuk menghubungi Admin.`, { parse_mode: 'Markdown' }).catch(() => {});
+      await userBot.telegram.sendMessage(targetTelegramId, `❌ <b>Pembayaran Tidak Dikonfirmasi</b>\n\nAdmin tidak dapat memverifikasi bukti pembayaran Anda. Silakan ketik /subscribe untuk menghubungi Admin.`, { parse_mode: 'HTML' }).catch(() => {});
 
       await ctx.answerCbQuery('Pembayaran Ditolak');
-      await ctx.editMessageText(`❌ **Pembayaran Ditolak** untuk user \`${targetTelegramId}\`.`, { parse_mode: 'Markdown' });
+      await ctx.editMessageText(`❌ <b>Pembayaran Ditolak</b> untuk user <code>${targetTelegramId}</code>.`, { parse_mode: 'HTML' });
       return;
     }
   } catch (error) {

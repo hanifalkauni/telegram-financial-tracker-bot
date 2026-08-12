@@ -20,7 +20,7 @@ export async function handleTextMessage(ctx: Context) {
     // 2. Check for Master Code
     if (text === ENV.ADMIN_MASTER_CODE) {
       const reply = await redeemMasterCode(access.user);
-      await ctx.reply(reply, { parse_mode: 'Markdown' });
+      await ctx.reply(reply, { parse_mode: 'HTML' });
       return;
     }
 
@@ -28,14 +28,14 @@ export async function handleTextMessage(ctx: Context) {
     if (/^[A-Z0-9]{5,10}$/i.test(text)) {
       const codeReply = await redeemConfirmationCode(access.user, text);
       if (!codeReply.includes('tidak ditemukan')) {
-        await ctx.reply(codeReply, { parse_mode: 'Markdown' });
+        await ctx.reply(codeReply, { parse_mode: 'HTML' });
         return;
       }
     }
 
     // 4. Block if Access Expired
     if (!access.canProcess) {
-      await ctx.reply(access.message || 'Access expired.', { parse_mode: 'Markdown' });
+      await ctx.reply(access.message || 'Access expired.', { parse_mode: 'HTML' });
       return;
     }
 
@@ -51,20 +51,20 @@ export async function handleTextMessage(ctx: Context) {
     const walletEmoji = parsed.wallet === 'E_WALLET' ? '📱 E_WALLET' : parsed.wallet === 'BANK' ? '🏦 BANK' : '💵 CASH';
     const typeEmoji = parsed.type === 'EXPENSE' ? '📤 EXPENSE' : '📥 INCOME';
 
-    const confirmationMsg = `📝 **Konfirmasi Transaksi**
+    const confirmationMsg = `📝 <b>Konfirmasi Transaksi</b>
 ━━━━━━━━━━━━━━━━━━━
-📌 **Tipe**       : ${typeEmoji}
-💵 **Nominal**    : ${formatRupiah(parsed.amount)}
-🏷️ **Kategori**   : ${parsed.category}
-🏛️ **Pilar**       : ${pillarEmoji}
-💳 **Dompet**     : ${walletEmoji}
-📝 **Deskripsi**  : ${parsed.description || '-'}
-📅 **Tanggal**    : ${parsed.date}
+📌 <b>Tipe</b>       : ${typeEmoji}
+💵 <b>Nominal</b>    : ${formatRupiah(parsed.amount)}
+🏷️ <b>Kategori</b>   : ${parsed.category}
+🏛️ <b>Pilar</b>       : ${pillarEmoji}
+💳 <b>Dompet</b>     : ${walletEmoji}
+📝 <b>Deskripsi</b>  : ${parsed.description || '-'}
+📅 <b>Tanggal</b>    : ${parsed.date}
 ━━━━━━━━━━━━━━━━━━━
 Apakah data di atas sudah benar?`;
 
     await ctx.reply(confirmationMsg, {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
           [
@@ -90,7 +90,7 @@ export async function handlePhotoMessage(ctx: Context) {
   try {
     const access = await checkUserAccess(telegramId, userName);
     if (!access.canProcess) {
-      await ctx.reply(access.message || 'Access expired.', { parse_mode: 'Markdown' });
+      await ctx.reply(access.message || 'Access expired.', { parse_mode: 'HTML' });
       return;
     }
 
@@ -116,20 +116,20 @@ export async function handlePhotoMessage(ctx: Context) {
     const walletEmoji = parsed.wallet === 'E_WALLET' ? '📱 E_WALLET' : parsed.wallet === 'BANK' ? '🏦 BANK' : '💵 CASH';
     const typeEmoji = parsed.type === 'EXPENSE' ? '📤 EXPENSE' : '📥 INCOME';
 
-    const confirmationMsg = `🧾 **Hasil OCR Struk Belanja**
+    const confirmationMsg = `🧾 <b>Hasil OCR Struk Belanja</b>
 ━━━━━━━━━━━━━━━━━━━
-📌 **Tipe**       : ${typeEmoji}
-💵 **Nominal**    : ${formatRupiah(parsed.amount)}
-🏷️ **Kategori**   : ${parsed.category}
-🏛️ **Pilar**       : ${pillarEmoji}
-💳 **Dompet**     : ${walletEmoji}
-📝 **Deskripsi**  : ${parsed.description || '-'}
-📅 **Tanggal**    : ${parsed.date}
+📌 <b>Tipe</b>       : ${typeEmoji}
+💵 <b>Nominal</b>    : ${formatRupiah(parsed.amount)}
+🏷️ <b>Kategori</b>   : ${parsed.category}
+🏛️ <b>Pilar</b>       : ${pillarEmoji}
+💳 <b>Dompet</b>     : ${walletEmoji}
+📝 <b>Deskripsi</b>  : ${parsed.description || '-'}
+📅 <b>Tanggal</b>    : ${parsed.date}
 ━━━━━━━━━━━━━━━━━━━
 Apakah data struk di atas sudah sesuai?`;
 
     await ctx.reply(confirmationMsg, {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
           [

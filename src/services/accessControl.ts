@@ -71,7 +71,7 @@ export async function checkUserAccess(telegramId: number, name?: string): Promis
     user,
     canProcess: false,
     statusType: 'EXPIRED',
-    message: `🎁 **Masa Free Trial 5 Transaksi Gratis Anda Telah Habis**\n\nUntuk membuka akses penuh tanpa batas, silakan masukkan **Kode Konfirmasi Berlangganan** dari Admin, atau ketik /subscribe untuk menghubungi Admin.`,
+    message: `🎁 <b>Masa Free Trial 5 Transaksi Gratis Anda Telah Habis</b>\n\nUntuk membuka akses penuh tanpa batas, silakan masukkan <b>Kode Konfirmasi Berlangganan</b> dari Admin, atau ketik /subscribe untuk menghubungi Admin.`,
   };
 }
 
@@ -86,7 +86,7 @@ export async function redeemMasterCode(user: UserRecord): Promise<string> {
     })
     .eq('id', user.id);
 
-  return `🎉 **Selamat! Anda telah terverifikasi sebagai Admin Seumur Hidup!**\n\n👑 Untuk mengelola sistem & menerima laporan error/tiket langganan, silakan buka **Admin Bot** dan tekan tombol /start 1 kali.`;
+  return `🎉 <b>Selamat! Anda telah terverifikasi sebagai Admin Seumur Hidup!</b>\n\n👑 Untuk mengelola sistem &amp; menerima laporan error/tiket langganan, silakan buka <b>Admin Bot</b> dan tekan tombol /start 1 kali.`;
 }
 
 export async function redeemConfirmationCode(user: UserRecord, codeInput: string): Promise<string> {
@@ -100,14 +100,13 @@ export async function redeemConfirmationCode(user: UserRecord, codeInput: string
     .single();
 
   if (!codeRecord) {
-    return `⚠️ Kode Konfirmasi \`${cleanCode}\` tidak ditemukan atau sudah pernah digunakan. Ketik /subscribe untuk meminta kode ke Admin.`;
+    return `⚠️ Kode Konfirmasi <code>${cleanCode}</code> tidak ditemukan atau sudah pernah digunakan. Ketik /subscribe untuk meminta kode ke Admin.`;
   }
 
   let newActiveUntil: string | null = null;
 
   if (codeRecord.duration_days && codeRecord.duration_days > 0) {
     const now = new Date();
-    // If current subscription is still active, extend from active_until
     let baseDate = now;
     if (user.active_until && new Date(user.active_until) > now) {
       baseDate = new Date(user.active_until);
@@ -140,5 +139,5 @@ export async function redeemConfirmationCode(user: UserRecord, codeInput: string
     ? `s/d ${new Date(newActiveUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`
     : 'Seumur Hidup (Lifetime)';
 
-  return `🎉 **Kode Konfirmasi Berhasil Diaktivasi!**\n\n✅ Status Akun: Berlangganan Aktif\n📅 Masa Aktif: ${durationText}\n\nTerima kasih telah berlangganan Financial Tracker Bot!`;
+  return `🎉 <b>Kode Konfirmasi Berhasil Diaktivasi!</b>\n\n✅ Status Akun: Berlangganan Aktif\n📅 Masa Aktif: ${durationText}\n\nTerima kasih telah berlangganan SetorSini AI Bot!`;
 }

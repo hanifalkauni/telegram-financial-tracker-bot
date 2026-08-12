@@ -12,19 +12,17 @@ export async function checkIsAdmin(ctx: Context): Promise<boolean> {
   const { data: user } = await supabase.from('users').select('is_admin').eq('telegram_id', telegramId).single();
 
   if (!user || !user.is_admin) {
-    // Check if the user is typing the Master Code to activate Admin
     if (ctx.message && 'text' in ctx.message && ctx.message.text.trim() === ENV.ADMIN_MASTER_CODE) {
       const userRecord = await getOrCreateUser(telegramId, name);
       const reply = await redeemMasterCode(userRecord);
-      await ctx.reply(reply, { parse_mode: 'Markdown' });
+      await ctx.reply(reply, { parse_mode: 'HTML' });
       return true;
     }
 
-    // Send access rejection message for non-admin chatting in Admin Bot
     await ctx
       .reply(
-        '⛔ **Akses Ditolak!**\n\nChat room ini khusus untuk Admin SetorSini. Anda tidak memiliki wewenang untuk mengakses bot ini.',
-        { parse_mode: 'Markdown' }
+        '⛔ <b>Akses Ditolak!</b>\n\nChat room ini khusus untuk Admin SetorSini. Anda tidak memiliki wewenang untuk mengakses bot ini.',
+        { parse_mode: 'HTML' }
       )
       .catch(() => {});
     return false;
@@ -37,20 +35,20 @@ export async function handleAdminStart(ctx: Context) {
   if (!(await checkIsAdmin(ctx))) return;
 
   const name = ctx.from?.first_name || 'Admin';
-  const startMsg = `👑 **Selamat Datang di Panel Admin SetorSini, ${name}!**
+  const startMsg = `👑 <b>Selamat Datang di Panel Admin SetorSini, ${name}!</b>
 
 Anda memiliki akses penuh untuk mengelola sistem, menerima notifikasi error, dan mengonfirmasi pembayaran pengguna.
 
-💡 **Menu Command Admin**:
-• /admin_stats : Lihat statistik bisnis & pengguna
-• /users : Lihat 20 daftar pengguna & Telegram ID
+💡 <b>Menu Command Admin</b>:
+• /admin_stats : Lihat statistik bisnis &amp; pengguna
+• /users : Lihat 20 daftar pengguna &amp; Telegram ID
 • /generate_code 30 : Buat Kode Konfirmasi 30 Hari
 • /generate_code 0 : Buat Kode Konfirmasi Lifetime
-• /reply <telegram_id> <pesan> : Balas tiket pesan pengguna
-• /extend <telegram_id> <hari> : Perpanjang langganan user
-• /broadcast <pesan> : Kirim pesan pengumuman masal`;
+• /reply &lt;telegram_id&gt; &lt;pesan&gt; : Balas tiket pesan pengguna
+• /extend &lt;telegram_id&gt; &lt;hari&gt; : Perpanjang langganan user
+• /broadcast &lt;pesan&gt; : Kirim pesan pengumuman masal`;
 
-  await ctx.reply(startMsg, { parse_mode: 'Markdown' });
+  await ctx.reply(startMsg, { parse_mode: 'HTML' });
 }
 
 export async function handleAdminReply(ctx: Context) {
@@ -59,7 +57,7 @@ export async function handleAdminReply(ctx: Context) {
 
   const parts = ctx.message.text.trim().split(/\s+/);
   if (parts.length < 3) {
-    await ctx.reply('⚠️ **Format Salah**. Gunakan: `/reply <telegram_id> <pesan_balasan>`', { parse_mode: 'Markdown' });
+    await ctx.reply('⚠️ <b>Format Salah</b>. Gunakan: <code>/reply &lt;telegram_id&gt; &lt;pesan_balasan&gt;</code>', { parse_mode: 'HTML' });
     return;
   }
 
@@ -73,11 +71,11 @@ export async function handleAdminReply(ctx: Context) {
 
   try {
     const userBot = new Telegraf(ENV.BOT_TOKEN);
-    await userBot.telegram.sendMessage(targetId, `📩 **Pesan Balasan dari Admin**:\n━━━━━━━━━━━━━━━━━━━\n${replyMessage}`, { parse_mode: 'Markdown' });
-    await ctx.reply(`✅ Pesan balasan berhasil dikirimkan ke Telegram ID \`${targetId}\`!`, { parse_mode: 'Markdown' });
+    await userBot.telegram.sendMessage(targetId, `📩 <b>Pesan Balasan dari Admin</b>:\n━━━━━━━━━━━━━━━━━━━\n${replyMessage}`, { parse_mode: 'HTML' });
+    await ctx.reply(`✅ Pesan balasan berhasil dikirimkan ke Telegram ID <code>${targetId}</code>!`, { parse_mode: 'HTML' });
   } catch (error) {
     await sendErrorAlert(error, 'handleAdminReply', `Target ID: ${targetId}`);
-    await ctx.reply(`⚠️ Gagal mengirimkan pesan ke Telegram ID \`${targetId}\`. Pengguna mungkin belum pernah menekan /start pada User Bot.`);
+    await ctx.reply(`⚠️ Gagal mengirimkan pesan ke Telegram ID <code>${targetId}</code>. Pengguna mungkin belum pernah menekan /start pada User Bot.`);
   }
 }
 
@@ -86,7 +84,7 @@ export async function handleGenerateCode(ctx: Context) {
   if (!ctx.message || !('text' in ctx.message)) return;
 
   const parts = ctx.message.text.trim().split(/\s+/);
-  let durationDays: number | null = 30; // default 30 days
+  let durationDays: number | null = 30;
 
   if (parts.length >= 2) {
     const arg = parts[1].toLowerCase();
@@ -111,12 +109,12 @@ export async function handleGenerateCode(ctx: Context) {
 
   const durationLabel = durationDays === null ? 'Seumur Hidup (Lifetime)' : `${durationDays} Hari`;
 
-  await ctx.reply(`🔑 **Kode Konfirmasi Berlangganan Dibuat!**
+  await ctx.reply(`🔑 <b>Kode Konfirmasi Berlangganan Dibuat!</b>
 ━━━━━━━━━━━━━━━━━━━
-Kode       : \`${code}\` (Tap untuk copy)
+Kode       : <code>${code}</code> (Tap untuk copy)
 Masa Aktif : ${durationLabel}
 ━━━━━━━━━━━━━━━━━━━
-Kirimkan kode ini ke pengguna untuk mengaktivasi bot.`, { parse_mode: 'Markdown' });
+Kirimkan kode ini ke pengguna untuk mengaktivasi bot.`, { parse_mode: 'HTML' });
 }
 
 export async function handleAdminStats(ctx: Context) {
@@ -129,7 +127,7 @@ export async function handleAdminStats(ctx: Context) {
   const { count: unusedCodes } = await supabase.from('confirmation_codes').select('*', { count: 'exact', head: true }).eq('is_used', false);
   const { count: totalTx } = await supabase.from('transactions').select('*', { count: 'exact', head: true });
 
-  const statsMsg = `👑 **Statistik Bisnis Financial Tracker Bot**
+  const statsMsg = `👑 <b>Statistik Bisnis Financial Tracker Bot</b>
 ━━━━━━━━━━━━━━━━━━━
 👥 Total User Terdaftar  : ${totalUsers || 0}
 🎁 Active Trial Users   : ${trialUsers || 0}
@@ -139,7 +137,7 @@ export async function handleAdminStats(ctx: Context) {
 📈 Total Transaksi System: ${totalTx || 0}
 ━━━━━━━━━━━━━━━━━━━`;
 
-  await ctx.reply(statsMsg, { parse_mode: 'Markdown' });
+  await ctx.reply(statsMsg, { parse_mode: 'HTML' });
 }
 
 export async function handleUsersList(ctx: Context) {
@@ -158,7 +156,7 @@ export async function handleUsersList(ctx: Context) {
     return;
   }
 
-  let text = '👥 **20 Pengguna Terbaru Terdaftar**:\n━━━━━━━━━━━━━━━━━━━\n';
+  let text = '👥 <b>20 Pengguna Terbaru Terdaftar</b>:\n━━━━━━━━━━━━━━━━━━━\n';
 
   uList.forEach((u, i) => {
     let status = 'Trial';
@@ -166,10 +164,10 @@ export async function handleUsersList(ctx: Context) {
     else if (u.is_activated) status = 'Active ✅';
     else if (u.trial_transactions_left <= 0) status = 'Expired ⚠️';
 
-    text += `${i + 1}. **${u.name || 'User'}** | ID: \`${u.telegram_id}\` | Status: ${status}\n`;
+    text += `${i + 1}. <b>${u.name || 'User'}</b> | ID: <code>${u.telegram_id}</code> | Status: ${status}\n`;
   });
 
-  await ctx.reply(text, { parse_mode: 'Markdown' });
+  await ctx.reply(text, { parse_mode: 'HTML' });
 }
 
 export async function handleExtendUser(ctx: Context) {
@@ -178,7 +176,7 @@ export async function handleExtendUser(ctx: Context) {
 
   const parts = ctx.message.text.trim().split(/\s+/);
   if (parts.length < 3) {
-    await ctx.reply('⚠️ **Format Salah**. Contoh: `/extend 123456789 30` atau `/extend 123456789 0` (Lifetime)', { parse_mode: 'Markdown' });
+    await ctx.reply('⚠️ <b>Format Salah</b>. Contoh: <code>/extend 123456789 30</code> atau <code>/extend 123456789 0</code> (Lifetime)', { parse_mode: 'HTML' });
     return;
   }
 
@@ -210,7 +208,7 @@ export async function handleExtendUser(ctx: Context) {
     return;
   }
 
-  await ctx.reply(`✅ **Masa aktif user \`${targetId}\` berhasil diperpanjang!**`, { parse_mode: 'Markdown' });
+  await ctx.reply(`✅ <b>Masa aktif user <code>${targetId}</code> berhasil diperpanjang!</b>`, { parse_mode: 'HTML' });
 }
 
 export async function handleBroadcast(ctx: Context) {
@@ -219,7 +217,7 @@ export async function handleBroadcast(ctx: Context) {
 
   const broadcastText = ctx.message.text.trim().split(/\s+/).slice(1).join(' ');
   if (!broadcastText) {
-    await ctx.reply('⚠️ Masukkan pesan yang ingin di-broadcast. Contoh: `/broadcast Halo semuanya!`', { parse_mode: 'Markdown' });
+    await ctx.reply('⚠️ Masukkan pesan yang ingin di-broadcast. Contoh: <code>/broadcast Halo semuanya!</code>', { parse_mode: 'HTML' });
     return;
   }
 
@@ -230,7 +228,7 @@ export async function handleBroadcast(ctx: Context) {
   if (users) {
     for (const u of users) {
       try {
-        await userBot.telegram.sendMessage(u.telegram_id, `📢 **PENGUMUMAN BROADCAST**\n━━━━━━━━━━━━━━━━━━━\n${broadcastText}`, { parse_mode: 'Markdown' });
+        await userBot.telegram.sendMessage(u.telegram_id, `📢 <b>PENGUMUMAN BROADCAST</b>\n━━━━━━━━━━━━━━━━━━━\n${broadcastText}`, { parse_mode: 'HTML' });
         successCount++;
       } catch {
         // Ignore blocked users
@@ -238,5 +236,5 @@ export async function handleBroadcast(ctx: Context) {
     }
   }
 
-  await ctx.reply(`📢 Broadcast selesai dikirimkan ke **${successCount}** pengguna!`, { parse_mode: 'Markdown' });
+  await ctx.reply(`📢 Broadcast selesai dikirimkan ke <b>${successCount}</b> pengguna!`, { parse_mode: 'HTML' });
 }

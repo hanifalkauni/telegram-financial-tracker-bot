@@ -15,21 +15,21 @@ export async function handleStart(ctx: Context) {
 
   const access = await checkUserAccess(telegramId, name);
 
-  const startMessage = `👋 **Selamat datang di SetorSini AI Bot, ${name}!**
+  const startMessage = `👋 <b>Selamat datang di SetorSini AI Bot, ${name}!</b>
 
 Bot AI ini siap membantu Anda mencatat & mengelola keuangan pribadi secara otomatis.
 
-🎁 **Status Akses**: ${access.statusType}
+🎁 <b>Status Akses</b>: ${access.statusType}
 • Kuota Trial: ${access.user.trial_transactions_left}/5 transaksi gratis
 • Masa Aktif: ${access.user.active_until ? new Date(access.user.active_until).toLocaleDateString('id-ID') : access.user.is_activated ? 'Seumur Hidup (Lifetime)' : 'Free Trial'}
 
-💡 **Cara Menggunakan**:
-• Ketik pesan biasa: \`makan siang warteg 20rb gopay\`
+💡 <b>Cara Menggunakan</b>:
+• Ketik pesan biasa: <code>makan siang warteg 20rb gopay</code>
 • Upload foto struk / nota belanja
 • Ketik /rekap untuk melihat ringkasan keuangan
 • Ketik /help untuk daftar command lengkap`;
 
-  await ctx.reply(startMessage, { parse_mode: 'Markdown' });
+  await ctx.reply(startMessage, { parse_mode: 'HTML' });
 }
 
 export async function handleStatus(ctx: Context) {
@@ -50,17 +50,17 @@ export async function handleStatus(ctx: Context) {
 
   const budgetText = u.monthly_budget ? formatRupiah(Number(u.monthly_budget)) : 'Belum diatur (/budget)';
 
-  const msg = `📊 **Status Akun Anda**
+  const msg = `📊 <b>Status Akun Anda</b>
 ━━━━━━━━━━━━━━━━━━━
-🆔 **Telegram ID** : \`${u.telegram_id}\` (Tap untuk copy)
-👤 **Nama**        : ${u.name || '-'}
-👤 **Status Akun**  : ${activeText}
-🎁 **Kuota Trial**  : ${u.trial_transactions_left}/5 transaksi
-⚖️ **Target Rasio**: ${u.ratio_needs} / ${u.ratio_wants} / ${u.ratio_savings} (Needs/Wants/Savings)
-💰 **Limit Budget** : ${budgetText}
+🆔 <b>Telegram ID</b> : <code>${u.telegram_id}</code> (Tap untuk copy)
+👤 <b>Nama</b>        : ${u.name || '-'}
+👤 <b>Status Akun</b>  : ${activeText}
+🎁 <b>Kuota Trial</b>  : ${u.trial_transactions_left}/5 transaksi
+⚖️ <b>Target Rasio</b>: ${u.ratio_needs} / ${u.ratio_wants} / ${u.ratio_savings} (Needs/Wants/Savings)
+💰 <b>Limit Budget</b> : ${budgetText}
 ━━━━━━━━━━━━━━━━━━━`;
 
-  await ctx.reply(msg, { parse_mode: 'Markdown' });
+  await ctx.reply(msg, { parse_mode: 'HTML' });
 }
 
 export async function handleSubscribe(ctx: Context) {
@@ -71,31 +71,31 @@ export async function handleSubscribe(ctx: Context) {
   const args = ctx.message.text.split(' ').slice(1).join(' ').trim();
 
   if (!args) {
-    const subGuide = `🎁 **Permintaan Langganan SetorSini AI Bot**
+    const subGuide = `🎁 <b>Permintaan Langganan SetorSini AI Bot</b>
 
 Silakan pilih paket langganan dan hubungi Admin dengan mengetik:
-👉 \`/subscribe <pesan_anda>\`
+👉 <code>/subscribe &lt;pesan_anda&gt;</code>
 
-**Pilihan Paket**:
+<b>Pilihan Paket</b>:
 • 1 Bulan  : Rp 20.000
 • 1 Tahun  : Rp 150.000
 • Lifetime : Rp 300.000
 
-Contoh: \`/subscribe Halo admin, saya ingin membeli paket 1 Bulan via QRIS\``;
-    await ctx.reply(subGuide, { parse_mode: 'Markdown' });
+Contoh: <code>/subscribe Halo admin, saya ingin membeli paket 1 Bulan via QRIS</code>`;
+    await ctx.reply(subGuide, { parse_mode: 'HTML' });
     return;
   }
 
   // Send Subscription Ticket to Admin Bot
   try {
-    const ticketMsg = `📩 **PERMINTAAN LANGGANAN BARU**
+    const ticketMsg = `📩 <b>PERMINTAAN LANGGANAN BARU</b>
 ━━━━━━━━━━━━━━━━━━━
-👤 **Nama**      : ${name} (@${ctx.from?.username || '-'})
-🆔 **Telegram ID**: \`${telegramId}\`
-💬 **Pesan**     : ${args}
+👤 <b>Nama</b>      : ${name} (@${ctx.from?.username || '-'})
+🆔 <b>Telegram ID</b>: <code>${telegramId}</code>
+💬 <b>Pesan</b>     : ${args}
 ━━━━━━━━━━━━━━━━━━━
 Untuk membalas pesan user ini, ketik:
-\`/reply ${telegramId} <pesan_anda>\``;
+<code>/reply ${telegramId} &lt;pesan_anda&gt;</code>`;
 
     const adminBotToken = ENV.ADMIN_BOT_TOKEN || ENV.BOT_TOKEN;
     const { data: admins } = await supabase.from('users').select('telegram_id').eq('is_admin', true);
@@ -104,11 +104,11 @@ Untuk membalas pesan user ini, ketik:
       const { Telegraf } = await import('telegraf');
       const botAdmin = new Telegraf(adminBotToken);
       for (const a of admins) {
-        await botAdmin.telegram.sendMessage(a.telegram_id, ticketMsg, { parse_mode: 'Markdown' }).catch(() => {});
+        await botAdmin.telegram.sendMessage(a.telegram_id, ticketMsg, { parse_mode: 'HTML' }).catch(() => {});
       }
     }
 
-    await ctx.reply('📩 **Permintaan langganan Anda telah terkirim ke Admin!**\n\nAdmin akan segera membalas pesan Anda di chat room ini.', { parse_mode: 'Markdown' });
+    await ctx.reply('📩 <b>Permintaan langganan Anda telah terkirim ke Admin!</b>\n\nAdmin akan segera membalas pesan Anda di chat room ini.', { parse_mode: 'HTML' });
   } catch (error) {
     await sendErrorAlert(error, 'handleSubscribe', `User: ${telegramId}`);
     await ctx.reply('⚠️ Gagal mengirimkan tiket langganan. Silakan coba lagi.');
@@ -128,7 +128,7 @@ export async function handleConfirm(ctx: Context) {
   }
 
   if (!photoFileId) {
-    await ctx.reply('📸 **Silakan kirim foto struk transfer / screenshot QRIS dengan menuliskan caption `/confirm`**', { parse_mode: 'Markdown' });
+    await ctx.reply('📸 <b>Silakan kirim foto struk transfer / screenshot QRIS dengan menuliskan caption <code>/confirm</code></b>', { parse_mode: 'HTML' });
     return;
   }
 
@@ -140,17 +140,17 @@ export async function handleConfirm(ctx: Context) {
       const { Telegraf } = await import('telegraf');
       const botAdmin = new Telegraf(adminBotToken);
 
-      const caption = `📩 **KONFIRMASI PEMBAYARAN BARU**
+      const caption = `📩 <b>KONFIRMASI PEMBAYARAN BARU</b>
 ━━━━━━━━━━━━━━━━━━━
-👤 **Nama**      : ${name} (@${ctx.from?.username || '-'})
-🆔 **Telegram ID**: \`${telegramId}\`
+👤 <b>Nama</b>      : ${name} (@${ctx.from?.username || '-'})
+🆔 <b>Telegram ID</b>: <code>${telegramId}</code>
 ━━━━━━━━━━━━━━━━━━━
 Pilih tindakan approval:`;
 
       for (const a of admins) {
         await botAdmin.telegram.sendPhoto(a.telegram_id, photoFileId, {
           caption: caption,
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
           reply_markup: {
             inline_keyboard: [
               [
@@ -167,7 +167,7 @@ Pilih tindakan approval:`;
       }
     }
 
-    await ctx.reply('📩 **Bukti pembayaran Anda telah dikirimkan ke Admin.**\n\nMohon tunggu verifikasi Admin (Status akun Anda akan aktif otomatis setelah di-approve).', { parse_mode: 'Markdown' });
+    await ctx.reply('📩 <b>Bukti pembayaran Anda telah dikirimkan ke Admin.</b>\n\nMohon tunggu verifikasi Admin (Status akun Anda akan aktif otomatis setelah di-approve).', { parse_mode: 'HTML' });
   } catch (error) {
     await sendErrorAlert(error, 'handleConfirm', `User: ${telegramId}`);
     await ctx.reply('⚠️ Gagal mengirimkan foto bukti transfer.');
@@ -200,7 +200,7 @@ export async function handleRekap(ctx: Context) {
   const msgText = formatRekapMessage(report, access.user);
 
   await ctx.reply(msgText, {
-    parse_mode: 'Markdown',
+    parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
         [
@@ -220,16 +220,16 @@ export async function handleRatio(ctx: Context) {
   const parts = ctx.message.text.trim().split(/\s+/);
 
   if (parts.length < 4) {
-    await ctx.reply(`⚖️ **Kustomisasi Rasio Keuangan 50/30/20**
+    await ctx.reply(`⚖️ <b>Kustomisasi Rasio Keuangan 50/30/20</b>
 
-Rasio Aktif Anda: **${access.user.ratio_needs} / ${access.user.ratio_wants} / ${access.user.ratio_savings}** (Needs / Wants / Savings)
+Rasio Aktif Anda: <b>${access.user.ratio_needs} / ${access.user.ratio_wants} / ${access.user.ratio_savings}</b> (Needs / Wants / Savings)
 
-👉 **Cara Mengubah**:
-\`/ratio <needs> <wants> <savings>\`
+👉 <b>Cara Mengubah</b>:
+<code>/ratio &lt;needs&gt; &lt;wants&gt; &lt;savings&gt;</code>
 
 Contoh:
-• \`/ratio 60 20 20\` (60% Kebutuhan, 20% Keinginan, 20% Tabungan)
-• \`/ratio 70 20 10\``, { parse_mode: 'Markdown' });
+• <code>/ratio 60 20 20</code> (60% Kebutuhan, 20% Keinginan, 20% Tabungan)
+• <code>/ratio 70 20 10</code>`, { parse_mode: 'HTML' });
     return;
   }
 
@@ -238,13 +238,13 @@ Contoh:
   const savings = parseInt(parts[3], 10);
 
   if (isNaN(needs) || isNaN(wants) || isNaN(savings) || needs + wants + savings !== 100) {
-    await ctx.reply('⚠️ **Total rasio harus bernilai 100%!** (Contoh: `/ratio 60 20 20`)', { parse_mode: 'Markdown' });
+    await ctx.reply('⚠️ <b>Total rasio harus bernilai 100%!</b> (Contoh: <code>/ratio 60 20 20</code>)', { parse_mode: 'HTML' });
     return;
   }
 
   await supabase.from('users').update({ ratio_needs: needs, ratio_wants: wants, ratio_savings: savings }).eq('id', access.user.id);
 
-  await ctx.reply(`✅ **Target Rasio Keuangan Berhasil Diperbarui!**\n\n🎯 Target Baru: **${needs}% NEEDS / ${wants}% WANTS / ${savings}% SAVINGS**`, { parse_mode: 'Markdown' });
+  await ctx.reply(`✅ <b>Target Rasio Keuangan Berhasil Diperbarui!</b>\n\n🎯 Target Baru: <b>${needs}% NEEDS / ${wants}% WANTS / ${savings}% SAVINGS</b>`, { parse_mode: 'HTML' });
 }
 
 export async function handleInsight(ctx: Context) {
@@ -253,7 +253,7 @@ export async function handleInsight(ctx: Context) {
 
   const access = await checkUserAccess(telegramId, ctx.from?.first_name);
   if (!access.canProcess) {
-    await ctx.reply(access.message || 'Access expired.', { parse_mode: 'Markdown' });
+    await ctx.reply(access.message || 'Access expired.', { parse_mode: 'HTML' });
     return;
   }
 
@@ -265,7 +265,7 @@ Breakdown Pilar: Needs=${formatRupiah(report.pillarBreakdown.NEEDS)}, Wants=${fo
 Kategori Terbesar: ${report.categoryBreakdown.slice(0, 3).map((c) => `${c.category} (${formatRupiah(c.amount)})`).join(', ')}`;
 
   const insight = await generateAIInsight(summaryText);
-  await ctx.reply(`💡 **AI Financial Insight & Advisory**\n━━━━━━━━━━━━━━━━━━━\n${insight}`, { parse_mode: 'Markdown' });
+  await ctx.reply(`💡 <b>AI Financial Insight & Advisory</b>\n━━━━━━━━━━━━━━━━━━━\n${insight}`, { parse_mode: 'HTML' });
 }
 
 export async function handleRutin(ctx: Context) {
@@ -282,7 +282,7 @@ export async function handleRutin(ctx: Context) {
     const desc = parts.slice(5).join(' ') || 'Tagihan Rutin';
 
     if (isNaN(amount) || isNaN(dueDay) || dueDay < 1 || dueDay > 31) {
-      await ctx.reply('⚠️ Format salah. Contoh: `/rutin tambah EXPENSE 1500000 5 Uang Kos` (Jatuh tempo tgl 1-31)', { parse_mode: 'Markdown' });
+      await ctx.reply('⚠️ Format salah. Contoh: <code>/rutin tambah EXPENSE 1500000 5 Uang Kos</code> (Jatuh tempo tgl 1-31)', { parse_mode: 'HTML' });
       return;
     }
 
@@ -297,23 +297,23 @@ export async function handleRutin(ctx: Context) {
       due_day: dueDay,
     }]);
 
-    await ctx.reply(`✅ **Transaksi Rutin Ditambahkan!**\n\n📌 ${desc} (${formatRupiah(amount)}) - Jatuh tempo setiap tanggal **${dueDay}**`, { parse_mode: 'Markdown' });
+    await ctx.reply(`✅ <b>Transaksi Rutin Ditambahkan!</b>\n\n📌 ${desc} (${formatRupiah(amount)}) - Jatuh tempo setiap tanggal <b>${dueDay}</b>`, { parse_mode: 'HTML' });
     return;
   }
 
   const { data: recs } = await supabase.from('recurring_transactions').select('*').eq('user_id', access.user.id).eq('is_active', true);
   const list = (recs as RecurringTransactionRecord[]) || [];
 
-  let text = '🔄 **Daftar Transaksi Rutin Bulanan**\n━━━━━━━━━━━━━━━━━━━\n';
+  let text = '🔄 <b>Daftar Transaksi Rutin Bulanan</b>\n━━━━━━━━━━━━━━━━━━━\n';
   if (list.length === 0) {
-    text += 'Belum ada transaksi rutin.\n\n👉 **Cara Tambah**: `/rutin tambah EXPENSE 1500000 5 Uang Kos`';
+    text += 'Belum ada transaksi rutin.\n\n👉 <b>Cara Tambah</b>: <code>/rutin tambah EXPENSE 1500000 5 Uang Kos</code>';
   } else {
     list.forEach((r, idx) => {
-      text += `${idx + 1}. **${r.description}** - ${formatRupiah(Number(r.amount))} (Tgl ${r.due_day})\n`;
+      text += `${idx + 1}. <b>${r.description}</b> - ${formatRupiah(Number(r.amount))} (Tgl ${r.due_day})\n`;
     });
   }
 
-  await ctx.reply(text, { parse_mode: 'Markdown' });
+  await ctx.reply(text, { parse_mode: 'HTML' });
 }
 
 export async function handleHistory(ctx: Context) {
@@ -332,17 +332,17 @@ export async function handleHistory(ctx: Context) {
   const txs = (transactions as TransactionRecord[]) || [];
 
   if (txs.length === 0) {
-    await ctx.reply('📋 **Riwayat Transaksi**: Belum ada transaksi tercatat.', { parse_mode: 'Markdown' });
+    await ctx.reply('📋 <b>Riwayat Transaksi</b>: Belum ada transaksi tercatat.', { parse_mode: 'HTML' });
     return;
   }
 
-  await ctx.reply('📜 **10 Transaksi Terakhir Anda**:', { parse_mode: 'Markdown' });
+  await ctx.reply('📜 <b>10 Transaksi Terakhir Anda</b>:', { parse_mode: 'HTML' });
 
   for (const t of txs) {
     const icon = t.type === 'EXPENSE' ? '📤' : '📥';
-    const text = `${icon} **${formatRupiah(Number(t.amount))}** | ${t.category}\n📝 ${t.description || '-'}\n📅 ${t.transaction_date}`;
+    const text = `${icon} <b>${formatRupiah(Number(t.amount))}</b> | ${t.category}\n📝 ${t.description || '-'}\n📅 ${t.transaction_date}`;
     await ctx.reply(text, {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [[{ text: '🗑️ Hapus Transaksi Ini', callback_data: `delete_tx:${t.id}` }]],
       },
@@ -370,7 +370,7 @@ export async function handleHapusTerakhir(ctx: Context) {
   }
 
   await supabase.from('transactions').delete().eq('id', lastTx.id);
-  await ctx.reply(`🗑️ **Transaksi Terakhir Berhasil Dihapus!**\n(${lastTx.category} - ${formatRupiah(Number(lastTx.amount))})`, { parse_mode: 'Markdown' });
+  await ctx.reply(`🗑️ <b>Transaksi Terakhir Berhasil Dihapus!</b>\n(${lastTx.category} - ${formatRupiah(Number(lastTx.amount))})`, { parse_mode: 'HTML' });
 }
 
 export async function handleExport(ctx: Context) {
@@ -409,18 +409,18 @@ export async function handleBudget(ctx: Context) {
 
   if (parts.length < 2) {
     const current = access.user.monthly_budget ? formatRupiah(Number(access.user.monthly_budget)) : 'Belum diatur';
-    await ctx.reply(`🎯 **Pengaturan Limit Budget Bulanan**\n\nBudget Aktif: **${current}**\n\n👉 **Cara Atur**: \`/budget 3000000\``, { parse_mode: 'Markdown' });
+    await ctx.reply(`🎯 <b>Pengaturan Limit Budget Bulanan</b>\n\nBudget Aktif: <b>${current}</b>\n\n👉 <b>Cara Atur</b>: <code>/budget 3000000</code>`, { parse_mode: 'HTML' });
     return;
   }
 
   const amount = parseFloat(parts[1]);
   if (isNaN(amount) || amount <= 0) {
-    await ctx.reply('⚠️ Masukkan nominal angka murni yang valid. Contoh: `/budget 3000000`', { parse_mode: 'Markdown' });
+    await ctx.reply('⚠️ Masukkan nominal angka murni yang valid. Contoh: <code>/budget 3000000</code>', { parse_mode: 'HTML' });
     return;
   }
 
   await supabase.from('users').update({ monthly_budget: amount }).eq('id', access.user.id);
-  await ctx.reply(`🎯 **Budget Bulanan Berhasil Diatur!**\n\nBatas Pengeluaran: **${formatRupiah(amount)}**`, { parse_mode: 'Markdown' });
+  await ctx.reply(`🎯 <b>Budget Bulanan Berhasil Diatur!</b>\n\nBatas Pengeluaran: <b>${formatRupiah(amount)}</b>`, { parse_mode: 'HTML' });
 }
 
 export async function handleHelp(ctx: Context) {
@@ -430,34 +430,34 @@ export async function handleHelp(ctx: Context) {
   const access = await checkUserAccess(telegramId, ctx.from?.first_name);
 
   if (access.user.is_admin) {
-    const adminHelp = `👑 **Panduan Admin & Pengelolaan Bisnis**
+    const adminHelp = `👑 <b>Panduan Admin &amp; Pengelolaan Bisnis</b>
 
-**Fitur Manajemen Admin**:
-• /users : Lihat 20 daftar pengguna & Telegram ID
+<b>Fitur Manajemen Admin</b>:
+• /users : Lihat 20 daftar pengguna &amp; Telegram ID
 • /generate_code 30 : Buat Kode Konfirmasi 30 Hari
 • /generate_code 0 : Buat Kode Konfirmasi Lifetime
-• /reply <telegram_id> <pesan> : Balas tiket pesan user
-• /extend <telegram_id> <hari> : Perpanjang langganan user
-• /admin_stats : Statistik user trial, subscriber & transaksi
-• /broadcast <pesan> : Kirim pesan masal ke seluruh user
+• /reply &lt;telegram_id&gt; &lt;pesan&gt; : Balas tiket pesan user
+• /extend &lt;telegram_id&gt; &lt;hari&gt; : Perpanjang langganan user
+• /admin_stats : Statistik user trial, subscriber &amp; transaksi
+• /broadcast &lt;pesan&gt; : Kirim pesan masal ke seluruh user
 
-**Fitur Pencatatan**:
+<b>Fitur Pencatatan</b>:
 • Catat teks/struk, /status, /rekap, /ratio, /insight, /export`;
-    await ctx.reply(adminHelp, { parse_mode: 'Markdown' });
+    await ctx.reply(adminHelp, { parse_mode: 'HTML' });
     return;
   }
 
-  const userHelp = `💡 **Panduan Penggunaan SetorSini AI Bot**
+  const userHelp = `💡 <b>Panduan Penggunaan SetorSini AI Bot</b>
 
-🎁 **Status Trial**: Gratis 5 transaksi awal.
-• Catat Teks: \`makan siang warteg 20rb gopay\`
+🎁 <b>Status Trial</b>: Gratis 5 transaksi awal.
+• Catat Teks: <code>makan siang warteg 20rb gopay</code>
 • Upload Foto Struk / Nota
 
-**Menu Command**:
-• /status : Cek Telegram ID & sisa masa aktif
+<b>Menu Command</b>:
+• /status : Cek Telegram ID &amp; sisa masa aktif
 • /subscribe : Minta informasi / tiket langganan
 • /confirm : Kirim foto bukti transfer ke Admin
-• /rekap : Lihat ringkasan laporan & health score
+• /rekap : Lihat ringkasan laporan &amp; health score
 • /ratio 60 20 20 : Atur target rasio 50/30/20
 • /insight : Panggil AI Advisor saran finansial
 • /rutin : Kelola transaksi tagihan rutin
@@ -465,5 +465,5 @@ export async function handleHelp(ctx: Context) {
 • /export : Download laporan CSV Excel
 • /budget 3000000 : Atur batas anggaran bulanan`;
 
-  await ctx.reply(userHelp, { parse_mode: 'Markdown' });
+  await ctx.reply(userHelp, { parse_mode: 'HTML' });
 }
