@@ -106,12 +106,12 @@ export async function handlePhotoMessage(ctx: Context) {
       return;
     }
 
-    await ctx.sendChatAction('typing');
+    await ctx.sendChatAction('upload_photo');
 
-    // Get highest resolution photo
+    // Select optimal resolution photo (index length - 2 for 800px-1280px, fast download & crisp OCR)
     const photos = ctx.message.photo;
-    const highestResPhoto = photos[photos.length - 1];
-    const fileLink = await ctx.telegram.getFileLink(highestResPhoto.file_id);
+    const optimalPhoto = photos.length > 2 ? photos[photos.length - 2] : photos[photos.length - 1];
+    const fileLink = await ctx.telegram.getFileLink(optimalPhoto.file_id);
 
     // Fetch image binary buffer
     const response = await fetch(fileLink.href);
