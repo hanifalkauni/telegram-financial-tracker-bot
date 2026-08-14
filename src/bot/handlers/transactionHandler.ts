@@ -2,8 +2,49 @@ import { Context } from 'telegraf';
 import { checkUserAccess, redeemMasterCode, redeemConfirmationCode, checkRateLimit } from '../../services/accessControl.js';
 import { parseTransactionFromText, parseTransactionFromImage, encodeCompactTx } from '../../services/gemini.js';
 import { ENV } from '../../config/env.js';
+import { supabase } from '../../db/supabase.js';
 import { formatRupiah } from '../../utils/timezone.js';
 import { sendErrorAlert } from '../../utils/errorAlert.js';
+
+export async function forwardPaymentProofToAdmin(ctx: Context, photoFileId: string, telegramId: number, name: string) {
+  try {
+    const adminBotToken = ENV.ADMIN_BOT_TOKEN || ENV.BOT_TOKEN;
+    const { data: admins } = await supabase.from('users').select('telegram_id').eq('is_admin', true);
+
+    if (admins && admins.length > 0) {
+      const { Telegraf } = await import('telegraf');
+      const botAdmin = new Telegraf(adminBotToken);
+
+      const caption = `📩 <b>KONFIRMASI PEMBAYARAN BARU (Auto-Detected)</b>
+━━━━━━━━━━━━━━━━━━━
+👤 <b>Nama</b>      : ${name} (@${ctx.from?.username || '-'})
+🆔 <b>Telegram ID</b>: <code>${telegramId}</code>
+━━━━━━━━━━━━━━━━━━━
+Pilih tindakan approval:`;
+
+      for (const a of admins) {
+        await botAdmin.telegram.sendPhoto(a.telegram_id, photoFileId, {
+          caption: caption,
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '✅ Approve 30 Hari', callback_data: `approve_sub:${telegramId}:30` },
+                { text: '✅ Approve 1 Tahun', callback_data: `approve_sub:${telegramId}:365` },
+              ],
+              [
+                { text: '♾️ Approve Lifetime', callback_data: `approve_sub:${telegramId}:0` },
+                { text: '❌ Tolak', callback_data: `reject_sub:${telegramId}` },
+              ],
+            ],
+          },
+        }).catch(() => {});
+      }
+    }
+  } catch (error) {
+    console.error('[FORWARD PAYMENT PROOF ERROR]', error);
+  }
+}
 
 export async function handleTextMessage(ctx: Context) {
   if (!ctx.message || !('text' in ctx.message)) return;
@@ -102,18 +143,20 @@ export async function handlePhotoMessage(ctx: Context) {
       return;
     }
 
-    const access = await checkUserAccess(telegramId, userName);
-    if (!access.canProcess) {
-      await ctx.reply(access.message || 'Access expired.', { parse_mode: 'HTML' });
+    const photos = ctx.message.photo;
+    const optimalPhoto = photos.length > 2 ? photos[photos.length - 2] : photos[photos.length - 1];
+
+    // Check if caption explicitly indicates payment proof
+    const captionLower = ('caption' in ctx.message && ctx.message.caption) ? ctx.message.caption.toLowerCase() : '';
+    if (captionLower.includes('/confirm') || captionLower.includes('confirm') || captionLower.includes('bukti') || captionLower.includes('transfer') || captionLower.includes('bayar')) {
+      await forwardPaymentProofToAdmin(ctx, optimalPhoto.file_id, telegramId, userName);
+      await ctx.reply('📩 <b>Bukti pembayaran Anda telah dikirimkan ke Admin.</b>\n\nMohon tunggu verifikasi Admin (Status akun Anda akan aktif otomatis setelah di-approve).', { parse_mode: 'HTML' });
       return;
     }
 
     await ctx.sendChatAction('upload_photo');
     processingMsg = await ctx.reply('🔎 <i>Sedang membaca &amp; menganalisis foto struk belanjaan Anda...</i>', { parse_mode: 'HTML' });
 
-    // Select optimal resolution photo (index length - 2 for 800px-1280px, fast download & crisp OCR)
-    const photos = ctx.message.photo;
-    const optimalPhoto = photos.length > 2 ? photos[photos.length - 2] : photos[photos.length - 1];
     const fileLink = await ctx.telegram.getFileLink(optimalPhoto.file_id);
 
     // Fetch image binary buffer
@@ -123,6 +166,37 @@ export async function handlePhotoMessage(ctx: Context) {
 
     // Parse image via AI Multimodal OCR
     const parsed = await parseTransactionFromImage(imageBuffer, 'image/jpeg');
+
+    const chatId = ctx.chat?.id;
+
+    // Check if AI detected that this is a Bank/QRIS Transfer Payment Proof
+    if (parsed.is_transfer_proof) {
+      await forwardPaymentProofToAdmin(ctx, optimalPhoto.file_id, telegramId, userName);
+      const proofMsg = '📩 <b>Bukti transfer pembayaran Anda terdeteksi &amp; telah dikirimkan ke Admin untuk verifikasi!</b>\n\nMohon tunggu konfirmasi Admin (Status akun Anda akan aktif otomatis setelah di-approve).';
+
+      if (chatId && processingMsg) {
+        await ctx.telegram.editMessageText(chatId, processingMsg.message_id, undefined, proofMsg, { parse_mode: 'HTML' }).catch(async () => {
+          await ctx.reply(proofMsg, { parse_mode: 'HTML' });
+        });
+      } else {
+        await ctx.reply(proofMsg, { parse_mode: 'HTML' });
+      }
+      return;
+    }
+
+    // Otherwise, this is a Shopping Receipt. Check user access limits.
+    const access = await checkUserAccess(telegramId, userName);
+    if (!access.canProcess) {
+      const expiredMsg = access.message || 'Access expired.';
+      if (chatId && processingMsg) {
+        await ctx.telegram.editMessageText(chatId, processingMsg.message_id, undefined, expiredMsg, { parse_mode: 'HTML' }).catch(async () => {
+          await ctx.reply(expiredMsg, { parse_mode: 'HTML' });
+        });
+      } else {
+        await ctx.reply(expiredMsg, { parse_mode: 'HTML' });
+      }
+      return;
+    }
 
     const compactPayload = encodeCompactTx(parsed);
 
@@ -142,7 +216,6 @@ export async function handlePhotoMessage(ctx: Context) {
 ━━━━━━━━━━━━━━━━━━━
 Apakah data struk di atas sudah sesuai?`;
 
-    const chatId = ctx.chat?.id;
     if (chatId && processingMsg) {
       await ctx.telegram.editMessageText(chatId, processingMsg.message_id, undefined, confirmationMsg, {
         parse_mode: 'HTML',
@@ -186,6 +259,6 @@ Apakah data struk di atas sudah sesuai?`;
       await ctx.telegram.deleteMessage(chatId, processingMsg.message_id).catch(() => {});
     }
     await sendErrorAlert(error, 'handlePhotoMessage', `User ID: ${telegramId}`);
-    await ctx.reply('⚠️ Gagal membaca foto struk. Pastikan foto tulisan struk terlihat jelas dan terang.');
+    await ctx.reply('⚠️ Gagal membaca foto. Pastikan foto tulisan struk/bukti transfer terlihat jelas dan terang.');
   }
 }

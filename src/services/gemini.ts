@@ -10,6 +10,7 @@ export interface ParsedTransaction {
   wallet: 'CASH' | 'BANK' | 'E_WALLET';
   financial_pillar: 'NEEDS' | 'WANTS' | 'SAVINGS';
   date: string;
+  is_transfer_proof?: boolean;
 }
 
 const responseSchema = {
@@ -26,7 +27,7 @@ const responseSchema = {
     },
     category: {
       type: Type.STRING,
-      description: 'Category name (e.g. Makanan & Minuman, Transportasi, Belanja, Tagihan, Gaji)',
+      description: 'Category name (e.g. Makanan & Minuman, Transportasi, Belanja, Tagihan, Gaji, Transfer)',
     },
     description: {
       type: Type.STRING,
@@ -46,8 +47,12 @@ const responseSchema = {
       type: Type.STRING,
       description: 'Date formatted YYYY-MM-DD',
     },
+    is_transfer_proof: {
+      type: Type.BOOLEAN,
+      description: 'Set to true if this image is a bank transfer receipt / e-wallet transfer proof / QRIS payment receipt / M-banking success screen (bukti transfer/pembayaran). Set to false if it is a shopping receipt / nota belanja.',
+    },
   },
-  required: ['type', 'amount', 'category', 'description', 'wallet', 'financial_pillar', 'date'],
+  required: ['type', 'amount', 'category', 'description', 'wallet', 'financial_pillar', 'date', 'is_transfer_proof'],
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -171,8 +176,10 @@ Input Teks Pengguna: "${text}"`;
 
 export async function parseTransactionFromImage(imageBuffer: Buffer, mimeType: string = 'image/jpeg'): Promise<ParsedTransaction> {
   const currentDateStr = getWIBDateString();
-  const prompt = `Anda adalah OCR & vision parser AI keuangan. Ekstrak total nominal belanja, kategori, deskripsi, metode pembayaran, dan tanggal dari foto struk/nota belanja ini ke dalam format JSON terstruktur.
-Tanggal Hari Ini: ${currentDateStr} (WIB UTC+7). Jika tanggal tidak terdeteksi di struk, gunakan ${currentDateStr}.`;
+  const prompt = `Anda adalah OCR & vision parser AI keuangan. Analisis gambar ini. 
+1. Tentukan apakah gambar ini adalah BUKTI TRANSFER BANK / E-WALLET / QRIS (is_transfer_proof: true), ATAU STRUK/NOTA BELANJAAN biasa (is_transfer_proof: false).
+2. Ekstrak nominal, kategori, deskripsi, metode pembayaran, dan tanggal ke dalam format JSON terstruktur.
+Tanggal Hari Ini: ${currentDateStr} (WIB UTC+7). Jika tanggal tidak terdeteksi, gunakan ${currentDateStr}.`;
 
   return executeWithKeyFallback(
     async (ai, modelName) => {
@@ -201,7 +208,7 @@ Tanggal Hari Ini: ${currentDateStr} (WIB UTC+7). Jika tanggal tidak terdeteksi d
 
       return JSON.parse(rawJson) as ParsedTransaction;
     },
-    ['gemini-1.5-flash', 'gemini-2.5-flash'] // Use ultra-fast gemini-1.5-flash first for image OCR!
+    ['gemini-1.5-flash', 'gemini-2.5-flash']
   );
 }
 
