@@ -25,6 +25,9 @@ import {
   handleUsersList,
   handleExtendUser,
   handleBroadcast,
+  handlePaymentMethodsList,
+  handleAddPayment,
+  handleDeletePayment,
 } from './handlers/adminCommands.js';
 import { handleCallbackQuery } from './callbacks/callbackHandler.js';
 
@@ -88,6 +91,9 @@ export function createAdminBot(token: string) {
       { command: 'start', description: 'Panel Utama Admin SetorSini' },
       { command: 'admin_stats', description: 'Statistik pengguna & transaksi' },
       { command: 'users', description: 'Lihat 20 daftar pengguna & Telegram ID' },
+      { command: 'payments', description: 'Kelola metode pembayaran BCA/Mandiri/QRIS' },
+      { command: 'add_payment', description: 'Tambah rekening/metode pembayaran baru' },
+      { command: 'delete_payment', description: 'Hapus metode pembayaran by ID' },
       { command: 'generate_code', description: 'Buat Kode Konfirmasi (30/365/Lifetime)' },
       { command: 'reply', description: 'Balas tiket pesan pengguna (/reply <id> <pesan>)' },
       { command: 'extend', description: 'Perpanjang langganan user manual' },
@@ -102,6 +108,9 @@ export function createAdminBot(token: string) {
   bot.command('users', handleUsersList);
   bot.command('extend', handleExtendUser);
   bot.command('broadcast', handleBroadcast);
+  bot.command('payments', handlePaymentMethodsList);
+  bot.command('add_payment', handleAddPayment);
+  bot.command('delete_payment', handleDeletePayment);
 
   bot.on('callback_query', handleCallbackQuery);
 

@@ -37,11 +37,14 @@ export async function handleAdminStart(ctx: Context) {
   const name = ctx.from?.first_name || 'Admin';
   const startMsg = `👑 <b>Selamat Datang di Panel Admin SetorSini, ${name}!</b>
 
-Anda memiliki akses penuh untuk mengelola sistem, menerima notifikasi error, dan mengonfirmasi pembayaran pengguna.
+Anda memiliki akses penuh untuk mengelola sistem, menerima notifikasi error, mengelola pembayaran, dan mengonfirmasi langganan pengguna.
 
 💡 <b>Menu Command Admin</b>:
 • /admin_stats : Lihat statistik bisnis &amp; pengguna
 • /users : Lihat 20 daftar pengguna &amp; Telegram ID
+• /payments : Lihat &amp; kelola daftar metode pembayaran
+• /add_payment : Tambah metode pembayaran baru
+• /delete_payment : Hapus metode pembayaran
 • /generate_code 30 : Buat Kode Konfirmasi 30 Hari
 • /generate_code 0 : Buat Kode Konfirmasi Lifetime
 • /reply &lt;telegram_id&gt; &lt;pesan&gt; : Balas tiket pesan pengguna
@@ -237,4 +240,94 @@ export async function handleBroadcast(ctx: Context) {
   }
 
   await ctx.reply(`📢 Broadcast selesai dikirimkan ke <b>${successCount}</b> pengguna!`, { parse_mode: 'HTML' });
+}
+
+export async function handlePaymentMethodsList(ctx: Context) {
+  if (!(await checkIsAdmin(ctx))) return;
+
+  const { data: payMethods } = await supabase
+    .from('payment_methods')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  const list = payMethods || [];
+
+  let text = '💳 <b>Daftar Metode Pembayaran Aktif</b>:\n━━━━━━━━━━━━━━━━━━━\n';
+
+  if (list.length === 0) {
+    text += 'Belum ada metode pembayaran kustom di database (menggunakan default system).\n\n';
+  } else {
+    list.forEach((pm, idx) => {
+      const statusIcon = pm.is_active ? '✅' : '❌';
+      text += `${idx + 1}. [ID: <code>${pm.id}</code>] <b>${pm.name}</b>\n   No. Rek: <code>${pm.account_number}</code> | ${pm.account_name} (${statusIcon})\n\n`;
+    });
+  }
+
+  text += `💡 <b>Panduan Pengelolaan</b>:
+• Tambah : <code>/add_payment Nama Bank | Nomor Rekening | Nama Pemilik</code>
+• Hapus  : <code>/delete_payment &lt;id&gt;</code>`;
+
+  await ctx.reply(text, { parse_mode: 'HTML' });
+}
+
+export async function handleAddPayment(ctx: Context) {
+  if (!(await checkIsAdmin(ctx))) return;
+  if (!ctx.message || !('text' in ctx.message)) return;
+
+  const rawInput = ctx.message.text.replace(/^\/add_payment\s*/i, '').trim();
+
+  if (!rawInput || !rawInput.includes('|')) {
+    await ctx.reply(
+      '⚠️ <b>Format Salah</b>.\n\nGunakan separator <code>|</code>:\n<code>/add_payment Nama Bank | Nomor Rekening | Nama Pemilik</code>\n\nContoh:\n<code>/add_payment Bank Mandiri | 9876543210 | a.n. SetorSini AI</code>',
+      { parse_mode: 'HTML' }
+    );
+    return;
+  }
+
+  const parts = rawInput.split('|').map((p) => p.trim());
+  if (parts.length < 3 || !parts[0] || !parts[1] || !parts[2]) {
+    await ctx.reply('⚠️ Harap isi ketiga parameter: <code>Nama Bank | No Rekening | Nama Pemilik</code>', { parse_mode: 'HTML' });
+    return;
+  }
+
+  const [name, accountNumber, accountName] = parts;
+
+  const { data, error } = await supabase
+    .from('payment_methods')
+    .insert([{ name, account_number: accountNumber, account_name: accountName, is_active: true }])
+    .select('*')
+    .single();
+
+  if (error) {
+    await ctx.reply(`⚠️ Gagal menambahkan metode pembayaran: ${error.message}`);
+    return;
+  }
+
+  await ctx.reply(`✅ <b>Metode Pembayaran Ditambahkan!</b>\n━━━━━━━━━━━━━━━━━━━\nID      : <code>${data.id}</code>\nMetode  : <b>${name}</b>\nNo. Rek : <code>${accountNumber}</code>\nPemilik : ${accountName}`, { parse_mode: 'HTML' });
+}
+
+export async function handleDeletePayment(ctx: Context) {
+  if (!(await checkIsAdmin(ctx))) return;
+  if (!ctx.message || !('text' in ctx.message)) return;
+
+  const parts = ctx.message.text.trim().split(/\s+/);
+  if (parts.length < 2) {
+    await ctx.reply('⚠️ <b>Format Salah</b>. Gunakan: <code>/delete_payment &lt;id&gt;</code> (Cek ID via /payments)', { parse_mode: 'HTML' });
+    return;
+  }
+
+  const id = parseInt(parts[1], 10);
+  if (isNaN(id)) {
+    await ctx.reply('⚠️ ID metode pembayaran harus berupa angka.');
+    return;
+  }
+
+  const { error } = await supabase.from('payment_methods').delete().eq('id', id);
+
+  if (error) {
+    await ctx.reply(`⚠️ Gagal menghapus metode pembayaran ID ${id}: ${error.message}`);
+    return;
+  }
+
+  await ctx.reply(`🗑️ <b>Metode Pembayaran ID <code>${id}</code> telah berhasil dihapus.</b>`, { parse_mode: 'HTML' });
 }
