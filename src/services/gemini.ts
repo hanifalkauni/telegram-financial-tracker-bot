@@ -63,13 +63,15 @@ function getGeminiInstances(): GoogleGenAI[] {
   return keys.map((key) => new GoogleGenAI({ apiKey: key }));
 }
 
-async function executeWithKeyFallback<T>(fn: (ai: GoogleGenAI, modelName: string) => Promise<T>): Promise<T> {
+async function executeWithKeyFallback<T>(
+  fn: (ai: GoogleGenAI, modelName: string) => Promise<T>,
+  preferredModels: string[] = ['gemini-1.5-flash', 'gemini-2.5-flash']
+): Promise<T> {
   const instances = getGeminiInstances();
-  const models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
   let lastError: any = null;
 
   for (let i = 0; i < instances.length; i++) {
-    for (const modelName of models) {
+    for (const modelName of preferredModels) {
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
           return await fn(instances[i], modelName);
@@ -144,24 +146,27 @@ Tanggal Hari Ini: ${currentDateStr} (WIB UTC+7). Jika pengguna tidak menyebutkan
 
 Input Teks Pengguna: "${text}"`;
 
-  return executeWithKeyFallback(async (ai, modelName) => {
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: responseSchema,
-        temperature: 0.1,
-      },
-    });
+  return executeWithKeyFallback(
+    async (ai, modelName) => {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: responseSchema,
+          temperature: 0.1,
+        },
+      });
 
-    const rawJson = response.text;
-    if (!rawJson) {
-      throw new Error('Gemini returned an empty response.');
-    }
+      const rawJson = response.text;
+      if (!rawJson) {
+        throw new Error('Gemini returned an empty response.');
+      }
 
-    return JSON.parse(rawJson) as ParsedTransaction;
-  });
+      return JSON.parse(rawJson) as ParsedTransaction;
+    },
+    ['gemini-2.5-flash', 'gemini-1.5-flash']
+  );
 }
 
 export async function parseTransactionFromImage(imageBuffer: Buffer, mimeType: string = 'image/jpeg'): Promise<ParsedTransaction> {
@@ -169,32 +174,35 @@ export async function parseTransactionFromImage(imageBuffer: Buffer, mimeType: s
   const prompt = `Anda adalah OCR & vision parser AI keuangan. Ekstrak total nominal belanja, kategori, deskripsi, metode pembayaran, dan tanggal dari foto struk/nota belanja ini ke dalam format JSON terstruktur.
 Tanggal Hari Ini: ${currentDateStr} (WIB UTC+7). Jika tanggal tidak terdeteksi di struk, gunakan ${currentDateStr}.`;
 
-  return executeWithKeyFallback(async (ai, modelName) => {
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: [
-        {
-          inlineData: {
-            mimeType: mimeType,
-            data: imageBuffer.toString('base64'),
+  return executeWithKeyFallback(
+    async (ai, modelName) => {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: [
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: imageBuffer.toString('base64'),
+            },
           },
+          prompt,
+        ],
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: responseSchema,
+          temperature: 0.1,
         },
-        prompt,
-      ],
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: responseSchema,
-        temperature: 0.1,
-      },
-    });
+      });
 
-    const rawJson = response.text;
-    if (!rawJson) {
-      throw new Error('Gemini OCR returned an empty response.');
-    }
+      const rawJson = response.text;
+      if (!rawJson) {
+        throw new Error('Gemini OCR returned an empty response.');
+      }
 
-    return JSON.parse(rawJson) as ParsedTransaction;
-  });
+      return JSON.parse(rawJson) as ParsedTransaction;
+    },
+    ['gemini-1.5-flash', 'gemini-2.5-flash'] // Use ultra-fast gemini-1.5-flash first for image OCR!
+  );
 }
 
 export async function generateAIInsight(summaryData: string): Promise<string> {
@@ -204,15 +212,18 @@ ${summaryData}
 
 Format jawaban dalam bentuk pesan Telegram dengan emoji yang menarik dan mudah dibaca. Maksimal 3 poin rekomendasi.`;
 
-  return executeWithKeyFallback(async (ai, modelName) => {
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: prompt,
-      config: {
-        temperature: 0.7,
-      },
-    });
+  return executeWithKeyFallback(
+    async (ai, modelName) => {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+          temperature: 0.7,
+        },
+      });
 
-    return response.text || 'Tidak dapat menghasilkan insight finansial saat ini.';
-  });
+      return response.text || 'Tidak dapat menghasilkan insight finansial saat ini.';
+    },
+    ['gemini-2.5-flash', 'gemini-1.5-flash']
+  );
 }
