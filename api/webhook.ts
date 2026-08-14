@@ -68,10 +68,10 @@ export default async function handler(req: IncomingMessage & { body?: any; query
       return sendHtml(400, '<h1>400 Bad Request</h1><p>No update payload received.</p>');
     }
 
-    // Parse URL search parameters robustly
-    const queryString = (req.url || '').split('?')[1] || '';
-    const urlParams = new URLSearchParams(queryString);
-    const isAdminRoute = urlParams.get('bot') === 'admin' || req.query?.bot === 'admin';
+    // Parse URL search parameters using standard WHATWG URL API
+    const reqUrl = req.url || '';
+    const fullUrl = new URL(reqUrl.startsWith('http') ? reqUrl : `https://localhost${reqUrl}`);
+    const isAdminRoute = fullUrl.searchParams.get('bot') === 'admin' || req.query?.bot === 'admin';
 
     // Determine whether update is for Admin Bot or User Bot
     if (ENV.ADMIN_BOT_TOKEN && ENV.ADMIN_BOT_TOKEN !== ENV.BOT_TOKEN && isAdminRoute) {
