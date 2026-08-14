@@ -135,7 +135,57 @@ export async function handleCallbackQuery(ctx: Context) {
       return;
     }
 
-    // 5. One-Tap Admin Approval Callback
+    // 5. Interactive Subscription Package Selected
+    if (data.startsWith('sub_pkg:')) {
+      const parts = data.split(':');
+      const days = parseInt(parts[1], 10);
+      const amount = parseInt(parts[2], 10);
+
+      const pkgName = days === 30 ? '📦 Paket 1 Bulan (30 Hari)' : days === 365 ? '🌟 Paket 1 Tahun (365 Hari)' : '♾️ Paket Lifetime (Seumur Hidup)';
+
+      const invoiceMsg = `🧾 <b>INVOICE PEMBAYARAN SETORSINI</b>
+━━━━━━━━━━━━━━━━━━━
+📦 <b>Paket</b>     : ${pkgName}
+💵 <b>Total</b>     : <b>${formatRupiah(amount)}</b>
+💳 <b>Metode</b>    : QRIS / Bank Transfer
+
+<b>Petunjuk Pembayaran</b>:
+• 🏦 Bank BCA: <code>1234567890</code> (a.n. SetorSini)
+• 📱 E-Wallet: <code>08123456789</code> (GoPay/OVO/Dana)
+
+Setelah transfer, klik <b>📤 Kirim Bukti Bayar</b> di bawah ini untuk mengunggah foto struk/screenshot transfer Anda:`;
+
+      await ctx.answerCbQuery();
+      await ctx.editMessageText(invoiceMsg, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📤 Kirim Bukti Bayar', callback_data: `sub_upload:${days}:${amount}` }],
+            [{ text: '❌ Batal Pembayaran', callback_data: 'cancel_sub' }],
+          ],
+        },
+      });
+      return;
+    }
+
+    // 6. Interactive Subscription Upload Callback
+    if (data.startsWith('sub_upload:')) {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText(
+        '📸 <b>Unggah Bukti Transfer Anda</b>\n\nSilakan kirimkan foto struk transfer / screenshot QRIS Anda sekarang di chat room ini dengan caption <code>/confirm</code>.\n\nBukti transfer akan otomatis diteruskan ke Admin untuk di-approve secara instan.',
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
+    // 7. Cancel Subscription Callback
+    if (data === 'cancel_sub') {
+      await ctx.answerCbQuery('Pembayaran dibatalkan');
+      await ctx.editMessageText('❌ <b>Proses Pembayaran Dibatalkan.</b>\n\nAnda dapat mengetik /subscribe kapan saja jika ingin berlangganan kembali.', { parse_mode: 'HTML' });
+      return;
+    }
+
+    // 8. One-Tap Admin Approval Callback
     if (data.startsWith('approve_sub:')) {
       const parts = data.split(':');
       const targetTelegramId = parseInt(parts[1], 10);
@@ -167,7 +217,7 @@ export async function handleCallbackQuery(ctx: Context) {
       return;
     }
 
-    // 6. Reject Payment Proof Callback
+    // 9. Reject Payment Proof Callback
     if (data.startsWith('reject_sub:')) {
       const targetTelegramId = parseInt(data.split(':')[1], 10);
       const userBot = new Telegraf(ENV.BOT_TOKEN);

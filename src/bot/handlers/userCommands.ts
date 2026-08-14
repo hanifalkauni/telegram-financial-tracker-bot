@@ -17,7 +17,7 @@ export async function handleStart(ctx: Context) {
 
   const startMessage = `👋 <b>Selamat datang di SetorSini AI Bot, ${name}!</b>
 
-Bot AI ini siap membantu Anda mencatat & mengelola keuangan pribadi secara otomatis.
+Bot AI ini siap membantu Anda mencatat &amp; mengelola keuangan pribadi secara otomatis.
 
 🎁 <b>Status Akses</b>: ${access.statusType}
 • Kuota Trial: ${access.user.trial_transactions_left}/5 transaksi gratis
@@ -65,54 +65,28 @@ export async function handleStatus(ctx: Context) {
 
 export async function handleSubscribe(ctx: Context) {
   const telegramId = ctx.from?.id;
-  const name = ctx.from?.first_name || 'User';
-  if (!telegramId || !ctx.message || !('text' in ctx.message)) return;
+  if (!telegramId) return;
 
-  const args = ctx.message.text.split(' ').slice(1).join(' ').trim();
+  const msg = `🎁 <b>Pilihan Paket Berlangganan SetorSini AI Bot</b>
 
-  if (!args) {
-    const subGuide = `🎁 <b>Permintaan Langganan SetorSini AI Bot</b>
+Buka akses fitur tanpa batas, catat struk belanja &amp; analisis finansial AI tanpa kuota trial:
 
-Silakan pilih paket langganan dan hubungi Admin dengan mengetik:
-👉 <code>/subscribe &lt;pesan_anda&gt;</code>
+• 📦 <b>1 Bulan</b> : Rp 20.000 / bulan
+• 🌟 <b>1 Tahun</b> : Rp 150.000 / tahun <i>(Hemat 37%)</i>
+• ♾️ <b>Lifetime</b> : Rp 300.000 <i>(Akses Seumur Hidup)</i>
 
-<b>Pilihan Paket</b>:
-• 1 Bulan  : Rp 20.000
-• 1 Tahun  : Rp 150.000
-• Lifetime : Rp 300.000
+Silakan pilih paket di bawah untuk melanjutkan pembayaran:`;
 
-Contoh: <code>/subscribe Halo admin, saya ingin membeli paket 1 Bulan via QRIS</code>`;
-    await ctx.reply(subGuide, { parse_mode: 'HTML' });
-    return;
-  }
-
-  // Send Subscription Ticket to Admin Bot
-  try {
-    const ticketMsg = `📩 <b>PERMINTAAN LANGGANAN BARU</b>
-━━━━━━━━━━━━━━━━━━━
-👤 <b>Nama</b>      : ${name} (@${ctx.from?.username || '-'})
-🆔 <b>Telegram ID</b>: <code>${telegramId}</code>
-💬 <b>Pesan</b>     : ${args}
-━━━━━━━━━━━━━━━━━━━
-Untuk membalas pesan user ini, ketik:
-<code>/reply ${telegramId} &lt;pesan_anda&gt;</code>`;
-
-    const adminBotToken = ENV.ADMIN_BOT_TOKEN || ENV.BOT_TOKEN;
-    const { data: admins } = await supabase.from('users').select('telegram_id').eq('is_admin', true);
-
-    if (admins && admins.length > 0) {
-      const { Telegraf } = await import('telegraf');
-      const botAdmin = new Telegraf(adminBotToken);
-      for (const a of admins) {
-        await botAdmin.telegram.sendMessage(a.telegram_id, ticketMsg, { parse_mode: 'HTML' }).catch(() => {});
-      }
-    }
-
-    await ctx.reply('📩 <b>Permintaan langganan Anda telah terkirim ke Admin!</b>\n\nAdmin akan segera membalas pesan Anda di chat room ini.', { parse_mode: 'HTML' });
-  } catch (error) {
-    await sendErrorAlert(error, 'handleSubscribe', `User: ${telegramId}`);
-    await ctx.reply('⚠️ Gagal mengirimkan tiket langganan. Silakan coba lagi.');
-  }
+  await ctx.reply(msg, {
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '📦 Paket 1 Bulan - Rp 20.000', callback_data: 'sub_pkg:30:20000' }],
+        [{ text: '🌟 Paket 1 Tahun - Rp 150.000 (Hemat 37%)', callback_data: 'sub_pkg:365:150000' }],
+        [{ text: '♾️ Paket Lifetime - Rp 300.000 (Seumur Hidup)', callback_data: 'sub_pkg:0:300000' }],
+      ],
+    },
+  });
 }
 
 export async function handleConfirm(ctx: Context) {
@@ -265,7 +239,7 @@ Breakdown Pilar: Needs=${formatRupiah(report.pillarBreakdown.NEEDS)}, Wants=${fo
 Kategori Terbesar: ${report.categoryBreakdown.slice(0, 3).map((c) => `${c.category} (${formatRupiah(c.amount)})`).join(', ')}`;
 
   const insight = await generateAIInsight(summaryText);
-  await ctx.reply(`💡 <b>AI Financial Insight & Advisory</b>\n━━━━━━━━━━━━━━━━━━━\n${insight}`, { parse_mode: 'HTML' });
+  await ctx.reply(`💡 <b>AI Financial Insight &amp; Advisory</b>\n━━━━━━━━━━━━━━━━━━━\n${insight}`, { parse_mode: 'HTML' });
 }
 
 export async function handleRutin(ctx: Context) {
@@ -455,7 +429,7 @@ export async function handleHelp(ctx: Context) {
 
 <b>Menu Command</b>:
 • /status : Cek Telegram ID &amp; sisa masa aktif
-• /subscribe : Minta informasi / tiket langganan
+• /subscribe : Pilih paket &amp; langganan 1-Tap
 • /confirm : Kirim foto bukti transfer ke Admin
 • /rekap : Lihat ringkasan laporan &amp; health score
 • /ratio 60 20 20 : Atur target rasio 50/30/20
