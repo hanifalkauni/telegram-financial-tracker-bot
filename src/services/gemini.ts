@@ -57,6 +57,23 @@ const responseSchema = {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`API Call Timed Out after ${ms}ms`));
+    }, ms);
+    promise
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+};
+
 function getGeminiInstances(): GoogleGenAI[] {
   const raw = ENV.GEMINI_API_KEY || '';
   const keys = raw.split(',').map((k) => k.trim()).filter((k) => k.length > 0);
@@ -70,7 +87,8 @@ function getGeminiInstances(): GoogleGenAI[] {
 
 async function executeWithKeyFallback<T>(
   fn: (ai: GoogleGenAI, modelName: string) => Promise<T>,
-  preferredModels: string[] = ['gemini-1.5-flash', 'gemini-2.5-flash']
+  preferredModels: string[] = ['gemini-1.5-flash', 'gemini-2.5-flash'],
+  timeoutPerAttemptMs: number = 7500
 ): Promise<T> {
   const instances = getGeminiInstances();
   let lastError: any = null;
@@ -79,15 +97,15 @@ async function executeWithKeyFallback<T>(
     for (const modelName of preferredModels) {
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
-          return await fn(instances[i], modelName);
+          return await withTimeout(fn(instances[i], modelName), timeoutPerAttemptMs);
         } catch (error: any) {
           lastError = error;
           const errMsg = error?.message || String(error);
           const is503 = errMsg.includes('503') || errMsg.includes('UNAVAILABLE') || errMsg.includes('high demand');
 
           if (is503 && attempt < 2) {
-            console.warn(`[GEMINI 503 RETRY] Key ${i + 1}, Model ${modelName}, Attempt ${attempt} failed with 503. Retrying in 500ms...`);
-            await sleep(500);
+            console.warn(`[GEMINI 503 RETRY] Key ${i + 1}, Model ${modelName}, Attempt ${attempt} failed with 503. Retrying in 300ms...`);
+            await sleep(300);
           } else {
             console.warn(`[GEMINI FALLBACK] Key ${i + 1}, Model ${modelName} failed: ${errMsg}. Trying next model/key...`);
             break;
@@ -170,7 +188,8 @@ Input Teks Pengguna: "${text}"`;
 
       return JSON.parse(rawJson) as ParsedTransaction;
     },
-    ['gemini-2.5-flash', 'gemini-1.5-flash']
+    ['gemini-2.5-flash', 'gemini-1.5-flash'],
+    7000
   );
 }
 
@@ -208,7 +227,8 @@ Tanggal Hari Ini: ${currentDateStr} (WIB UTC+7). Jika tanggal tidak terdeteksi, 
 
       return JSON.parse(rawJson) as ParsedTransaction;
     },
-    ['gemini-1.5-flash', 'gemini-2.5-flash']
+    ['gemini-1.5-flash', 'gemini-2.5-flash'],
+    7500
   );
 }
 
@@ -231,6 +251,7 @@ Format jawaban dalam bentuk pesan Telegram dengan emoji yang menarik dan mudah d
 
       return response.text || 'Tidak dapat menghasilkan insight finansial saat ini.';
     },
-    ['gemini-2.5-flash', 'gemini-1.5-flash']
+    ['gemini-2.5-flash', 'gemini-1.5-flash'],
+    7500
   );
 }

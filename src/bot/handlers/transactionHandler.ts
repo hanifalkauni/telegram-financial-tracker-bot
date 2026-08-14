@@ -88,7 +88,7 @@ export async function handleTextMessage(ctx: Context) {
     }
 
     // 5. Parse Transaction via AI Engine
-    await ctx.sendChatAction('typing');
+    await ctx.sendChatAction('typing').catch(() => {});
     const parsed = await parseTransactionFromText(text);
 
     // Encode payload in compact format (max 60 bytes) for Telegram callback button
@@ -144,7 +144,8 @@ export async function handlePhotoMessage(ctx: Context) {
     }
 
     const photos = ctx.message.photo;
-    const optimalPhoto = photos.length > 2 ? photos[photos.length - 2] : photos[photos.length - 1];
+    // Always use highest resolution photo for maximum OCR readability
+    const optimalPhoto = photos[photos.length - 1];
 
     // Check if caption explicitly indicates payment proof
     const captionLower = ('caption' in ctx.message && ctx.message.caption) ? ctx.message.caption.toLowerCase() : '';
@@ -154,8 +155,8 @@ export async function handlePhotoMessage(ctx: Context) {
       return;
     }
 
-    await ctx.sendChatAction('upload_photo');
-    processingMsg = await ctx.reply('🔎 <i>Sedang membaca &amp; menganalisis foto struk belanjaan Anda...</i>', { parse_mode: 'HTML' });
+    await ctx.sendChatAction('upload_photo').catch(() => {});
+    processingMsg = await ctx.reply('🔎 <i>Sedang membaca &amp; menganalisis foto struk...</i>', { parse_mode: 'HTML' });
 
     const fileLink = await ctx.telegram.getFileLink(optimalPhoto.file_id);
 
@@ -256,10 +257,16 @@ Apakah data struk di atas sudah sesuai?`;
     }
   } catch (error) {
     const chatId = ctx.chat?.id;
+    const errorMsgText = '⚠️ <b>Gagal Membaca Foto</b>\n\nSistem tidak dapat membaca teks pada foto tersebut. Pastikan foto struk / bukti transfer terlihat terang dan tulisan terbaca jelas.';
+
     if (chatId && processingMsg) {
-      await ctx.telegram.deleteMessage(chatId, processingMsg.message_id).catch(() => {});
+      await ctx.telegram.editMessageText(chatId, processingMsg.message_id, undefined, errorMsgText, { parse_mode: 'HTML' }).catch(async () => {
+        await ctx.reply(errorMsgText, { parse_mode: 'HTML' });
+      });
+    } else {
+      await ctx.reply(errorMsgText, { parse_mode: 'HTML' });
     }
-    await sendErrorAlert(error, 'handlePhotoMessage', `User ID: ${telegramId}`);
-    await ctx.reply('⚠️ Gagal membaca foto. Pastikan foto tulisan struk/bukti transfer terlihat jelas dan terang.');
+
+    sendErrorAlert(error, 'handlePhotoMessage', `User ID: ${telegramId}`).catch(() => {});
   }
 }
