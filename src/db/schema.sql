@@ -56,11 +56,22 @@ CREATE TABLE IF NOT EXISTS recurring_transactions (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 5. Create Payment Methods Table
+CREATE TABLE IF NOT EXISTS payment_methods (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    account_number VARCHAR(100) NOT NULL,
+    account_name VARCHAR(100) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Enable Row Level Security (RLS) for all tables
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE confirmation_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recurring_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payment_methods ENABLE ROW LEVEL SECURITY;
 
 -- Indexing for Query Performance
 CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);

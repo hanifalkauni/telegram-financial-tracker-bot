@@ -143,6 +143,20 @@ export async function handleCallbackQuery(ctx: Context) {
 
       const pkgName = days === 30 ? '📦 Paket 1 Bulan (30 Hari)' : days === 365 ? '🌟 Paket 1 Tahun (365 Hari)' : '♾️ Paket Lifetime (Seumur Hidup)';
 
+      // Dynamically fetch active payment methods from Supabase database table
+      const { data: payMethods } = await supabase
+        .from('payment_methods')
+        .select('name, account_number, account_name')
+        .eq('is_active', true);
+
+      let payDetailsText = '• 🏦 Bank BCA: <code>1234567890</code> (a.n. SetorSini)\n• 📱 E-Wallet: <code>08123456789</code> (GoPay/OVO/Dana)';
+
+      if (payMethods && payMethods.length > 0) {
+        payDetailsText = payMethods
+          .map((pm) => `• ${pm.name}: <code>${pm.account_number}</code> (${pm.account_name})`)
+          .join('\n');
+      }
+
       const invoiceMsg = `🧾 <b>INVOICE PEMBAYARAN SETORSINI</b>
 ━━━━━━━━━━━━━━━━━━━
 📦 <b>Paket</b>     : ${pkgName}
@@ -150,8 +164,7 @@ export async function handleCallbackQuery(ctx: Context) {
 💳 <b>Metode</b>    : QRIS / Bank Transfer
 
 <b>Petunjuk Pembayaran</b>:
-• 🏦 Bank BCA: <code>1234567890</code> (a.n. SetorSini)
-• 📱 E-Wallet: <code>08123456789</code> (GoPay/OVO/Dana)
+${payDetailsText}
 
 Setelah transfer, klik <b>📤 Kirim Bukti Bayar</b> di bawah ini untuk mengunggah foto struk/screenshot transfer Anda:`;
 
