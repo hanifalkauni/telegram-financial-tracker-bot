@@ -129,6 +129,8 @@ export function createAdminBot(token: string) {
   bot.on('photo', (ctx) => {
     if (ctx.message && 'caption' in ctx.message && ctx.message.caption?.startsWith('/add_qris')) {
       handleAddQris(ctx);
+    } else {
+      handlePhotoMessage(ctx);
     }
   });
 
