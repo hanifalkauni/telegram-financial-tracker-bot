@@ -1,5 +1,5 @@
 import { Context } from 'telegraf';
-import { checkUserAccess, redeemMasterCode, redeemConfirmationCode } from '../../services/accessControl.js';
+import { checkUserAccess, redeemMasterCode, redeemConfirmationCode, checkRateLimit } from '../../services/accessControl.js';
 import { parseTransactionFromText, parseTransactionFromImage, encodeCompactTx } from '../../services/gemini.js';
 import { ENV } from '../../config/env.js';
 import { formatRupiah } from '../../utils/timezone.js';
@@ -14,6 +14,13 @@ export async function handleTextMessage(ctx: Context) {
   if (!telegramId || text.startsWith('/')) return; // Ignore bot commands
 
   try {
+    // 0. Rate Limiting Check (Spam Guard)
+    const rateCheck = checkRateLimit(telegramId);
+    if (!rateCheck.allowed) {
+      await ctx.reply(`⚠️ <b>Mohon tunggu ${rateCheck.waitSeconds} detik</b> sebelum mengirim pesan transaksi berikutnya.`, { parse_mode: 'HTML' });
+      return;
+    }
+
     // 1. Check Access Control
     const access = await checkUserAccess(telegramId, userName);
 
@@ -87,6 +94,12 @@ export async function handlePhotoMessage(ctx: Context) {
   if (!telegramId) return;
 
   try {
+    const rateCheck = checkRateLimit(telegramId);
+    if (!rateCheck.allowed) {
+      await ctx.reply(`⚠️ <b>Mohon tunggu ${rateCheck.waitSeconds} detik</b> sebelum mengirim foto struk berikutnya.`, { parse_mode: 'HTML' });
+      return;
+    }
+
     const access = await checkUserAccess(telegramId, userName);
     if (!access.canProcess) {
       await ctx.reply(access.message || 'Access expired.', { parse_mode: 'HTML' });

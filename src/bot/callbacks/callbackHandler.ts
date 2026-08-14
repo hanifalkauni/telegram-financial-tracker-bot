@@ -18,13 +18,58 @@ export async function handleCallbackQuery(ctx: Context) {
     if (data.startsWith('save_tx:')) {
       const access = await checkUserAccess(telegramId, ctx.from?.first_name);
 
+      // Fetch fresh user state from DB to prevent race conditions during concurrent stress tests
+      const { data: freshUser } = await supabase
+        .from('users')
+        .select('id, is_admin, is_activated, trial_transactions_left, monthly_budget')
+        .eq('id', access.user.id)
+        .single();
+
+      const userRec = freshUser || access.user;
+
+      // Guard: Check if trial quota is exhausted
+      if (!userRec.is_admin && !userRec.is_activated && userRec.trial_transactions_left <= 0) {
+        await ctx.answerCbQuery('Masa Trial Habis');
+        await ctx.editMessageText(
+          '🎁 <b>Masa Free Trial 5 Transaksi Gratis Anda Telah Habis</b>\n\nUntuk membuka akses penuh tanpa batas, silakan masukkan <b>Kode Konfirmasi Berlangganan</b> dari Admin, atau ketik /subscribe untuk menghubungi Admin.',
+          { parse_mode: 'HTML' }
+        );
+        return;
+      }
+
+      // Optimistic Locking Atomic Decrement Guard for trial users
+      let trialNote = '';
+      if (!userRec.is_admin && !userRec.is_activated) {
+        const nextTrialCount = userRec.trial_transactions_left - 1;
+
+        const { data: updatedUser, error: updateErr } = await supabase
+          .from('users')
+          .update({ trial_transactions_left: nextTrialCount })
+          .eq('id', userRec.id)
+          .eq('trial_transactions_left', userRec.trial_transactions_left)
+          .select()
+          .single();
+
+        if (updateErr || !updatedUser) {
+          // Race condition caught! Another request decremented first
+          await ctx.answerCbQuery('Masa Trial Habis');
+          await ctx.editMessageText(
+            '🎁 <b>Masa Free Trial 5 Transaksi Gratis Anda Telah Habis</b>\n\nUntuk membuka akses penuh tanpa batas, silakan masukkan <b>Kode Konfirmasi Berlangganan</b> dari Admin, atau ketik /subscribe untuk menghubungi Admin.',
+            { parse_mode: 'HTML' }
+          );
+          return;
+        }
+
+        trialNote = `\n✨ (Sisa kuota Free Trial: ${nextTrialCount}/5 transaksi)`;
+      }
+
       const compactPayload = data.replace('save_tx:', '');
       const parsed: ParsedTransaction = decodeCompactTx(compactPayload);
 
       // Insert transaction into database
       await supabase.from('transactions').insert([
         {
-          user_id: access.user.id,
+          user_id: userRec.id,
           type: parsed.type,
           amount: parsed.amount,
           category: parsed.category,
@@ -35,18 +80,10 @@ export async function handleCallbackQuery(ctx: Context) {
         },
       ]);
 
-      // Decrement trial count if in trial mode
-      let trialNote = '';
-      if (!access.user.is_admin && !access.user.is_activated && access.user.trial_transactions_left > 0) {
-        const newLeft = access.user.trial_transactions_left - 1;
-        await supabase.from('users').update({ trial_transactions_left: newLeft }).eq('id', access.user.id);
-        trialNote = `\n✨ (Sisa kuota Free Trial: ${newLeft}/5 transaksi)`;
-      }
-
       // Check Budget Alert
       let budgetAlertText = '';
-      if (access.user.monthly_budget && Number(access.user.monthly_budget) > 0) {
-        const report = await getRekapReport(access.user.id, 'MONTH');
+      if (userRec.monthly_budget && Number(userRec.monthly_budget) > 0) {
+        const report = await getRekapReport(userRec.id, 'MONTH');
         if (report.budgetPercentage && report.budgetPercentage >= 100) {
           budgetAlertText = `\n⚠️ <b>PERINGATAN BUDGET</b>: Total pengeluaran bulan ini (${formatRupiah(report.totalExpense)}) telah MELAMPAUI limit budget Anda!`;
         } else if (report.budgetPercentage && report.budgetPercentage >= 80) {

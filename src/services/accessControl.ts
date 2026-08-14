@@ -8,6 +8,23 @@ export interface UserAccessState {
   message?: string;
 }
 
+const userLastRequestMap = new Map<number, number>();
+const RATE_LIMIT_MS = 1500; // 1.5 seconds cooldown per user
+
+export function checkRateLimit(telegramId: number): { allowed: boolean; waitSeconds: number } {
+  const now = Date.now();
+  const lastReq = userLastRequestMap.get(telegramId) || 0;
+  const elapsed = now - lastReq;
+
+  if (elapsed < RATE_LIMIT_MS) {
+    const waitSeconds = Math.ceil((RATE_LIMIT_MS - elapsed) / 1000) || 1;
+    return { allowed: false, waitSeconds };
+  }
+
+  userLastRequestMap.set(telegramId, now);
+  return { allowed: true, waitSeconds: 0 };
+}
+
 export async function getOrCreateUser(telegramId: number, name?: string): Promise<UserRecord> {
   const { data: existing } = await supabase.from('users').select('*').eq('telegram_id', telegramId).single();
 
