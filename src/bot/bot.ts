@@ -28,6 +28,9 @@ import {
   handlePaymentMethodsList,
   handleAddPayment,
   handleDeletePayment,
+  handlePackagesList,
+  handleAddPackage,
+  handleDeletePackage,
 } from './handlers/adminCommands.js';
 import { handleCallbackQuery } from './callbacks/callbackHandler.js';
 
@@ -94,6 +97,9 @@ export function createAdminBot(token: string) {
       { command: 'payments', description: 'Kelola metode pembayaran BCA/Mandiri/QRIS' },
       { command: 'add_payment', description: 'Tambah rekening/metode pembayaran baru' },
       { command: 'delete_payment', description: 'Hapus metode pembayaran by ID' },
+      { command: 'packages', description: 'Kelola paket berlangganan' },
+      { command: 'add_package', description: 'Tambah paket berlangganan baru' },
+      { command: 'delete_package', description: 'Hapus paket berlangganan by ID' },
       { command: 'generate_code', description: 'Buat Kode Konfirmasi (30/365/Lifetime)' },
       { command: 'reply', description: 'Balas tiket pesan pengguna (/reply <id> <pesan>)' },
       { command: 'extend', description: 'Perpanjang langganan user manual' },
@@ -111,6 +117,9 @@ export function createAdminBot(token: string) {
   bot.command('payments', handlePaymentMethodsList);
   bot.command('add_payment', handleAddPayment);
   bot.command('delete_payment', handleDeletePayment);
+  bot.command('packages', handlePackagesList);
+  bot.command('add_package', handleAddPackage);
+  bot.command('delete_package', handleDeletePackage);
 
   bot.on('callback_query', handleCallbackQuery);
 

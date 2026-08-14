@@ -66,12 +66,24 @@ CREATE TABLE IF NOT EXISTS payment_methods (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 6. Create Subscription Packages Table
+CREATE TABLE IF NOT EXISTS subscription_packages (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    duration_days INTEGER NOT NULL DEFAULT 30,
+    price NUMERIC(15, 2) NOT NULL,
+    badge VARCHAR(50) NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Enable Row Level Security (RLS) for all tables
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE confirmation_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recurring_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payment_methods ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscription_packages ENABLE ROW LEVEL SECURITY;
 
 -- Indexing for Query Performance
 CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);

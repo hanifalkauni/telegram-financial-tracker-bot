@@ -67,24 +67,44 @@ export async function handleSubscribe(ctx: Context) {
   const telegramId = ctx.from?.id;
   if (!telegramId) return;
 
+  const { data: dbPackages } = await supabase
+    .from('subscription_packages')
+    .select('*')
+    .eq('is_active', true)
+    .order('price', { ascending: true });
+
+  let inlineKeyboard: any[][] = [];
+  let packageSummaryList = '';
+
+  if (dbPackages && dbPackages.length > 0) {
+    dbPackages.forEach((pkg) => {
+      const badgeText = pkg.badge ? ` <i>(${pkg.badge})</i>` : '';
+      packageSummaryList += `• <b>${pkg.name}</b> : ${formatRupiah(Number(pkg.price))}${badgeText}\n`;
+
+      const buttonLabel = `${pkg.name} - ${formatRupiah(Number(pkg.price))}${pkg.badge ? ` (${pkg.badge})` : ''}`;
+      inlineKeyboard.push([{ text: buttonLabel, callback_data: `sub_pkg:${pkg.duration_days}:${pkg.price}` }]);
+    });
+  } else {
+    // Fallback defaults
+    packageSummaryList = `• 📦 <b>1 Bulan</b> : Rp 20.000 / bulan\n• 🌟 <b>1 Tahun</b> : Rp 150.000 / tahun <i>(Hemat 37%)</i>\n• ♾️ <b>Lifetime</b> : Rp 300.000 <i>(Akses Seumur Hidup)</i>\n`;
+    inlineKeyboard = [
+      [{ text: '📦 Paket 1 Bulan - Rp 20.000', callback_data: 'sub_pkg:30:20000' }],
+      [{ text: '🌟 Paket 1 Tahun - Rp 150.000 (Hemat 37%)', callback_data: 'sub_pkg:365:150000' }],
+      [{ text: '♾️ Paket Lifetime - Rp 300.000 (Seumur Hidup)', callback_data: 'sub_pkg:0:300000' }],
+    ];
+  }
+
   const msg = `🎁 <b>Pilihan Paket Berlangganan SetorSini AI Bot</b>
 
 Buka akses fitur tanpa batas, catat struk belanja &amp; analisis finansial AI tanpa kuota trial:
 
-• 📦 <b>1 Bulan</b> : Rp 20.000 / bulan
-• 🌟 <b>1 Tahun</b> : Rp 150.000 / tahun <i>(Hemat 37%)</i>
-• ♾️ <b>Lifetime</b> : Rp 300.000 <i>(Akses Seumur Hidup)</i>
-
+${packageSummaryList}
 Silakan pilih paket di bawah untuk melanjutkan pembayaran:`;
 
   await ctx.reply(msg, {
     parse_mode: 'HTML',
     reply_markup: {
-      inline_keyboard: [
-        [{ text: '📦 Paket 1 Bulan - Rp 20.000', callback_data: 'sub_pkg:30:20000' }],
-        [{ text: '🌟 Paket 1 Tahun - Rp 150.000 (Hemat 37%)', callback_data: 'sub_pkg:365:150000' }],
-        [{ text: '♾️ Paket Lifetime - Rp 300.000 (Seumur Hidup)', callback_data: 'sub_pkg:0:300000' }],
-      ],
+      inline_keyboard: inlineKeyboard,
     },
   });
 }
@@ -408,6 +428,10 @@ export async function handleHelp(ctx: Context) {
 
 <b>Fitur Manajemen Admin</b>:
 • /users : Lihat 20 daftar pengguna &amp; Telegram ID
+• /payments : Lihat &amp; kelola metode pembayaran
+• /add_payment : Tambah metode pembayaran baru
+• /packages : Lihat &amp; kelola paket langganan
+• /add_package : Tambah paket langganan baru
 • /generate_code 30 : Buat Kode Konfirmasi 30 Hari
 • /generate_code 0 : Buat Kode Konfirmasi Lifetime
 • /reply &lt;telegram_id&gt; &lt;pesan&gt; : Balas tiket pesan user

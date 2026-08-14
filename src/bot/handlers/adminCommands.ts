@@ -2,6 +2,7 @@ import { Context, Telegraf } from 'telegraf';
 import { supabase, UserRecord } from '../../db/supabase.js';
 import { ENV } from '../../config/env.js';
 import { redeemMasterCode, getOrCreateUser } from '../../services/accessControl.js';
+import { formatRupiah } from '../../utils/timezone.js';
 import { sendErrorAlert } from '../../utils/errorAlert.js';
 
 export async function checkIsAdmin(ctx: Context): Promise<boolean> {
@@ -37,14 +38,17 @@ export async function handleAdminStart(ctx: Context) {
   const name = ctx.from?.first_name || 'Admin';
   const startMsg = `👑 <b>Selamat Datang di Panel Admin SetorSini, ${name}!</b>
 
-Anda memiliki akses penuh untuk mengelola sistem, menerima notifikasi error, mengelola pembayaran, dan mengonfirmasi langganan pengguna.
+Anda memiliki akses penuh untuk mengelola sistem, menerima notifikasi error, mengelola pembayaran, paket langganan, dan mengonfirmasi langganan pengguna.
 
 💡 <b>Menu Command Admin</b>:
 • /admin_stats : Lihat statistik bisnis &amp; pengguna
 • /users : Lihat 20 daftar pengguna &amp; Telegram ID
-• /payments : Lihat &amp; kelola daftar metode pembayaran
+• /payments : Kelola daftar metode pembayaran
 • /add_payment : Tambah metode pembayaran baru
 • /delete_payment : Hapus metode pembayaran
+• /packages : Kelola paket berlangganan
+• /add_package : Tambah paket berlangganan baru
+• /delete_package : Hapus paket berlangganan
 • /generate_code 30 : Buat Kode Konfirmasi 30 Hari
 • /generate_code 0 : Buat Kode Konfirmasi Lifetime
 • /reply &lt;telegram_id&gt; &lt;pesan&gt; : Balas tiket pesan pengguna
@@ -330,4 +334,107 @@ export async function handleDeletePayment(ctx: Context) {
   }
 
   await ctx.reply(`🗑️ <b>Metode Pembayaran ID <code>${id}</code> telah berhasil dihapus.</b>`, { parse_mode: 'HTML' });
+}
+
+export async function handlePackagesList(ctx: Context) {
+  if (!(await checkIsAdmin(ctx))) return;
+
+  const { data: packages } = await supabase
+    .from('subscription_packages')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  const list = packages || [];
+
+  let text = '🎁 <b>Daftar Paket Berlangganan Aktif</b>:\n━━━━━━━━━━━━━━━━━━━\n';
+
+  if (list.length === 0) {
+    text += 'Belum ada paket berlangganan kustom di database (menggunakan default system).\n\n';
+  } else {
+    list.forEach((pkg, idx) => {
+      const statusIcon = pkg.is_active ? '✅' : '❌';
+      const durationText = pkg.duration_days === 0 ? 'Lifetime' : `${pkg.duration_days} Hari`;
+      const badgeText = pkg.badge ? ` | Badge: ${pkg.badge}` : '';
+      text += `${idx + 1}. [ID: <code>${pkg.id}</code>] <b>${pkg.name}</b>\n   Harga: <code>${formatRupiah(Number(pkg.price))}</code> | ${durationText}${badgeText} (${statusIcon})\n\n`;
+    });
+  }
+
+  text += `💡 <b>Panduan Pengelolaan</b>:
+• Tambah : <code>/add_package Nama Paket | DurasiHari | Harga | Badge(opsional)</code>
+  <i>Contoh: /add_package Paket 1 Bulan | 30 | 20000 | Populer</i>
+  <i>Contoh: /add_package Paket Lifetime | 0 | 300000 | Akses Selamanya</i>
+• Hapus  : <code>/delete_package &lt;id&gt;</code>`;
+
+  await ctx.reply(text, { parse_mode: 'HTML' });
+}
+
+export async function handleAddPackage(ctx: Context) {
+  if (!(await checkIsAdmin(ctx))) return;
+  if (!ctx.message || !('text' in ctx.message)) return;
+
+  const rawInput = ctx.message.text.replace(/^\/add_package\s*/i, '').trim();
+
+  if (!rawInput || !rawInput.includes('|')) {
+    await ctx.reply(
+      '⚠️ <b>Format Salah</b>.\n\nGunakan separator <code>|</code>:\n<code>/add_package Nama Paket | DurasiHari | Harga | BadgeOpsional</code>\n\nContoh:\n<code>/add_package Paket 6 Bulan | 180 | 100000 | Diskon 20%</code>',
+      { parse_mode: 'HTML' }
+    );
+    return;
+  }
+
+  const parts = rawInput.split('|').map((p) => p.trim());
+  if (parts.length < 3 || !parts[0] || !parts[1] || !parts[2]) {
+    await ctx.reply('⚠️ Harap isi minimal 3 parameter: <code>Nama Paket | DurasiHari | Harga</code>', { parse_mode: 'HTML' });
+    return;
+  }
+
+  const name = parts[0];
+  const durationDays = parseInt(parts[1], 10);
+  const price = parseFloat(parts[2]);
+  const badge = parts[3] || null;
+
+  if (isNaN(durationDays) || isNaN(price)) {
+    await ctx.reply('⚠️ Durasi hari dan Harga harus berupa angka valid. (Gunakan 0 untuk Lifetime)', { parse_mode: 'HTML' });
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from('subscription_packages')
+    .insert([{ name, duration_days: durationDays, price: price, badge: badge, is_active: true }])
+    .select('*')
+    .single();
+
+  if (error) {
+    await ctx.reply(`⚠️ Gagal menambahkan paket: ${error.message}`);
+    return;
+  }
+
+  const durLabel = durationDays === 0 ? 'Lifetime' : `${durationDays} Hari`;
+  await ctx.reply(`✅ <b>Paket Berlangganan Ditambahkan!</b>\n━━━━━━━━━━━━━━━━━━━\nID     : <code>${data.id}</code>\nNama   : <b>${name}</b>\nDurasi : ${durLabel}\nHarga  : <b>${formatRupiah(price)}</b>\nBadge  : ${badge || '-'}`, { parse_mode: 'HTML' });
+}
+
+export async function handleDeletePackage(ctx: Context) {
+  if (!(await checkIsAdmin(ctx))) return;
+  if (!ctx.message || !('text' in ctx.message)) return;
+
+  const parts = ctx.message.text.trim().split(/\s+/);
+  if (parts.length < 2) {
+    await ctx.reply('⚠️ <b>Format Salah</b>. Gunakan: <code>/delete_package &lt;id&gt;</code> (Cek ID via /packages)', { parse_mode: 'HTML' });
+    return;
+  }
+
+  const id = parseInt(parts[1], 10);
+  if (isNaN(id)) {
+    await ctx.reply('⚠️ ID paket harus berupa angka.');
+    return;
+  }
+
+  const { error } = await supabase.from('subscription_packages').delete().eq('id', id);
+
+  if (error) {
+    await ctx.reply(`⚠️ Gagal menghapus paket ID ${id}: ${error.message}`);
+    return;
+  }
+
+  await ctx.reply(`🗑️ <b>Paket Berlangganan ID <code>${id}</code> telah berhasil dihapus.</b>`, { parse_mode: 'HTML' });
 }
