@@ -93,6 +93,8 @@ export async function handlePhotoMessage(ctx: Context) {
 
   if (!telegramId) return;
 
+  let processingMsg: any = null;
+
   try {
     const rateCheck = checkRateLimit(telegramId);
     if (!rateCheck.allowed) {
@@ -107,6 +109,7 @@ export async function handlePhotoMessage(ctx: Context) {
     }
 
     await ctx.sendChatAction('upload_photo');
+    processingMsg = await ctx.reply('🔎 <i>Sedang membaca &amp; menganalisis foto struk belanjaan Anda via Gemini AI...</i>', { parse_mode: 'HTML' });
 
     // Select optimal resolution photo (index length - 2 for 800px-1280px, fast download & crisp OCR)
     const photos = ctx.message.photo;
@@ -139,18 +142,49 @@ export async function handlePhotoMessage(ctx: Context) {
 ━━━━━━━━━━━━━━━━━━━
 Apakah data struk di atas sudah sesuai?`;
 
-    await ctx.reply(confirmationMsg, {
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: '✅ Simpan Struk', callback_data: `save_tx:${compactPayload}` },
-            { text: '❌ Batal', callback_data: 'cancel_tx' },
+    const chatId = ctx.chat?.id;
+    if (chatId && processingMsg) {
+      await ctx.telegram.editMessageText(chatId, processingMsg.message_id, undefined, confirmationMsg, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '✅ Simpan Struk', callback_data: `save_tx:${compactPayload}` },
+              { text: '❌ Batal', callback_data: 'cancel_tx' },
+            ],
           ],
-        ],
-      },
-    });
+        },
+      }).catch(async () => {
+        await ctx.reply(confirmationMsg, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '✅ Simpan Struk', callback_data: `save_tx:${compactPayload}` },
+                { text: '❌ Batal', callback_data: 'cancel_tx' },
+              ],
+            ],
+          },
+        });
+      });
+    } else {
+      await ctx.reply(confirmationMsg, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '✅ Simpan Struk', callback_data: `save_tx:${compactPayload}` },
+              { text: '❌ Batal', callback_data: 'cancel_tx' },
+            ],
+          ],
+        },
+      });
+    }
   } catch (error) {
+    const chatId = ctx.chat?.id;
+    if (chatId && processingMsg) {
+      await ctx.telegram.deleteMessage(chatId, processingMsg.message_id).catch(() => {});
+    }
     await sendErrorAlert(error, 'handlePhotoMessage', `User ID: ${telegramId}`);
     await ctx.reply('⚠️ Gagal membaca foto struk. Pastikan foto tulisan struk terlihat jelas dan terang.');
   }
