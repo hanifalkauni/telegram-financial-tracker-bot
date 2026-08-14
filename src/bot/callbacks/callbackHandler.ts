@@ -146,14 +146,16 @@ export async function handleCallbackQuery(ctx: Context) {
       // Dynamically fetch active payment methods from Supabase database table
       const { data: payMethods } = await supabase
         .from('payment_methods')
-        .select('name, account_number, account_name')
+        .select('name, account_number, account_name, image_url')
         .eq('is_active', true);
+
+      const qrisMethod = payMethods?.find((pm) => pm.image_url && pm.image_url.length > 0);
 
       let payDetailsText = '• 🏦 Bank BCA: <code>1234567890</code> (a.n. SetorSini)\n• 📱 E-Wallet: <code>08123456789</code> (GoPay/OVO/Dana)';
 
       if (payMethods && payMethods.length > 0) {
         payDetailsText = payMethods
-          .map((pm) => `• ${pm.name}: <code>${pm.account_number}</code> (${pm.account_name})`)
+          .map((pm) => pm.image_url ? `• 🖼️ <b>${pm.name}</b> (${pm.account_name}) - Scan QRIS di bawah` : `• ${pm.name}: <code>${pm.account_number}</code> (${pm.account_name})`)
           .join('\n');
       }
 
@@ -169,15 +171,40 @@ ${payDetailsText}
 Setelah transfer, klik <b>📤 Kirim Bukti Bayar</b> di bawah ini untuk mengunggah foto struk/screenshot transfer Anda:`;
 
       await ctx.answerCbQuery();
-      await ctx.editMessageText(invoiceMsg, {
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '📤 Kirim Bukti Bayar', callback_data: `sub_upload:${days}:${amount}` }],
-            [{ text: '❌ Batal Pembayaran', callback_data: 'cancel_sub' }],
-          ],
-        },
-      });
+
+      if (qrisMethod && qrisMethod.image_url) {
+        // Send QRIS barcode image directly to user with invoice caption and action buttons!
+        await ctx.replyWithPhoto(qrisMethod.image_url, {
+          caption: invoiceMsg,
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📤 Kirim Bukti Bayar', callback_data: `sub_upload:${days}:${amount}` }],
+              [{ text: '❌ Batal Pembayaran', callback_data: 'cancel_sub' }],
+            ],
+          },
+        }).catch(async () => {
+          await ctx.editMessageText(invoiceMsg, {
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '📤 Kirim Bukti Bayar', callback_data: `sub_upload:${days}:${amount}` }],
+                [{ text: '❌ Batal Pembayaran', callback_data: 'cancel_sub' }],
+              ],
+            },
+          });
+        });
+      } else {
+        await ctx.editMessageText(invoiceMsg, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📤 Kirim Bukti Bayar', callback_data: `sub_upload:${days}:${amount}` }],
+              [{ text: '❌ Batal Pembayaran', callback_data: 'cancel_sub' }],
+            ],
+          },
+        });
+      }
       return;
     }
 

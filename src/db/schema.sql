@@ -56,12 +56,13 @@ CREATE TABLE IF NOT EXISTS recurring_transactions (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. Create Payment Methods Table
+-- 5. Create Payment Methods Table (supports text accounts & QRIS barcodes/images)
 CREATE TABLE IF NOT EXISTS payment_methods (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     account_number VARCHAR(100) NOT NULL,
     account_name VARCHAR(100) NOT NULL,
+    image_url TEXT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );

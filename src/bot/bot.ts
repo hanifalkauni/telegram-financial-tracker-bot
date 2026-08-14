@@ -27,6 +27,7 @@ import {
   handleBroadcast,
   handlePaymentMethodsList,
   handleAddPayment,
+  handleAddQris,
   handleDeletePayment,
   handlePackagesList,
   handleAddPackage,
@@ -96,6 +97,7 @@ export function createAdminBot(token: string) {
       { command: 'users', description: 'Lihat 20 daftar pengguna & Telegram ID' },
       { command: 'payments', description: 'Kelola metode pembayaran BCA/Mandiri/QRIS' },
       { command: 'add_payment', description: 'Tambah rekening/metode pembayaran baru' },
+      { command: 'add_qris', description: 'Upload gambar barcode QRIS baru' },
       { command: 'delete_payment', description: 'Hapus metode pembayaran by ID' },
       { command: 'packages', description: 'Kelola paket berlangganan' },
       { command: 'add_package', description: 'Tambah paket berlangganan baru' },
@@ -116,12 +118,19 @@ export function createAdminBot(token: string) {
   bot.command('broadcast', handleBroadcast);
   bot.command('payments', handlePaymentMethodsList);
   bot.command('add_payment', handleAddPayment);
+  bot.command('add_qris', handleAddQris);
   bot.command('delete_payment', handleDeletePayment);
   bot.command('packages', handlePackagesList);
   bot.command('add_package', handleAddPackage);
   bot.command('delete_package', handleDeletePackage);
 
   bot.on('callback_query', handleCallbackQuery);
+
+  bot.on('photo', (ctx) => {
+    if (ctx.message && 'caption' in ctx.message && ctx.message.caption?.startsWith('/add_qris')) {
+      handleAddQris(ctx);
+    }
+  });
 
   // Reject unauthorized text messages
   bot.on('text', async (ctx) => {

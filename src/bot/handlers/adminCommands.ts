@@ -38,19 +38,19 @@ export async function handleAdminStart(ctx: Context) {
   const name = ctx.from?.first_name || 'Admin';
   const startMsg = `👑 <b>Selamat Datang di Panel Admin SetorSini, ${name}!</b>
 
-Anda memiliki akses penuh untuk mengelola sistem, menerima notifikasi error, mengelola pembayaran, paket langganan, dan mengonfirmasi langganan pengguna.
+Anda memiliki akses penuh untuk mengelola sistem, menerima notifikasi error, mengelola pembayaran &amp; QRIS, paket langganan, dan mengonfirmasi langganan pengguna.
 
 💡 <b>Menu Command Admin</b>:
 • /admin_stats : Lihat statistik bisnis &amp; pengguna
 • /users : Lihat 20 daftar pengguna &amp; Telegram ID
 • /payments : Kelola daftar metode pembayaran
-• /add_payment : Tambah metode pembayaran baru
-• /delete_payment : Hapus metode pembayaran
+• /add_payment : Tambah rekening/metode pembayaran baru
+• /add_qris : Upload gambar barcode QRIS baru
+• /delete_payment : Hapus metode pembayaran by ID
 • /packages : Kelola paket berlangganan
 • /add_package : Tambah paket berlangganan baru
-• /delete_package : Hapus paket berlangganan
+• /delete_package : Hapus paket berlangganan by ID
 • /generate_code 30 : Buat Kode Konfirmasi 30 Hari
-• /generate_code 0 : Buat Kode Konfirmasi Lifetime
 • /reply &lt;telegram_id&gt; &lt;pesan&gt; : Balas tiket pesan pengguna
 • /extend &lt;telegram_id&gt; &lt;hari&gt; : Perpanjang langganan user
 • /broadcast &lt;pesan&gt; : Kirim pesan pengumuman masal`;
@@ -263,12 +263,14 @@ export async function handlePaymentMethodsList(ctx: Context) {
   } else {
     list.forEach((pm, idx) => {
       const statusIcon = pm.is_active ? '✅' : '❌';
-      text += `${idx + 1}. [ID: <code>${pm.id}</code>] <b>${pm.name}</b>\n   No. Rek: <code>${pm.account_number}</code> | ${pm.account_name} (${statusIcon})\n\n`;
+      const imgTag = pm.image_url ? ' 🖼️ (QRIS Image)' : '';
+      text += `${idx + 1}. [ID: <code>${pm.id}</code>] <b>${pm.name}</b>${imgTag}\n   No. Rek: <code>${pm.account_number}</code> | ${pm.account_name} (${statusIcon})\n\n`;
     });
   }
 
   text += `💡 <b>Panduan Pengelolaan</b>:
-• Tambah : <code>/add_payment Nama Bank | Nomor Rekening | Nama Pemilik</code>
+• Tambah Rekening : <code>/add_payment Nama Bank | Nomor Rekening | Nama Pemilik</code>
+• Tambah QRIS Foto : Send/Kirim foto QRIS dengan caption <code>/add_qris QRIS All Payment | Nama Pemilik</code>
 • Hapus  : <code>/delete_payment &lt;id&gt;</code>`;
 
   await ctx.reply(text, { parse_mode: 'HTML' });
@@ -308,6 +310,59 @@ export async function handleAddPayment(ctx: Context) {
   }
 
   await ctx.reply(`✅ <b>Metode Pembayaran Ditambahkan!</b>\n━━━━━━━━━━━━━━━━━━━\nID      : <code>${data.id}</code>\nMetode  : <b>${name}</b>\nNo. Rek : <code>${accountNumber}</code>\nPemilik : ${accountName}`, { parse_mode: 'HTML' });
+}
+
+export async function handleAddQris(ctx: Context) {
+  if (!(await checkIsAdmin(ctx))) return;
+  if (!ctx.message) return;
+
+  let name = 'QRIS All Payment';
+  let accountName = 'SetorSini AI';
+  let fileIdOrUrl: string | null = null;
+
+  // Case 1: Photo uploaded with caption /add_qris
+  if ('photo' in ctx.message && ctx.message.photo.length > 0) {
+    const photos = ctx.message.photo;
+    fileIdOrUrl = photos[photos.length - 1].file_id;
+
+    if (ctx.message.caption) {
+      const captionParts = ctx.message.caption.replace(/^\/add_qris\s*/i, '').trim().split('|').map((p) => p.trim());
+      if (captionParts[0]) name = captionParts[0];
+      if (captionParts[1]) accountName = captionParts[1];
+    }
+  } else if ('text' in ctx.message) {
+    // Case 2: Text command /add_qris Nama | URL_Image | NamaPemilik
+    const rawInput = ctx.message.text.replace(/^\/add_qris\s*/i, '').trim();
+    const parts = rawInput.split('|').map((p) => p.trim());
+    if (parts.length < 3) {
+      await ctx.reply(
+        '⚠️ <b>Format Tambah QRIS (Teks/URL)</b>:\n<code>/add_qris Nama QRIS | https://url-gambar.com/qris.jpg | Nama Pemilik</code>\n\n👉 <b>Atau Lebih Mudah</b>: Upload/Kirimkan langsung foto gambar QRIS Anda di Admin Bot ini dengan caption:\n<code>/add_qris QRIS All Payment | a.n. SetorSini AI</code>',
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+    name = parts[0];
+    fileIdOrUrl = parts[1];
+    accountName = parts[2];
+  }
+
+  if (!fileIdOrUrl) {
+    await ctx.reply('⚠️ Foto QRIS atau URL gambar tidak ditemukan.');
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from('payment_methods')
+    .insert([{ name, account_number: 'QRIS_PHOTO', account_name: accountName, image_url: fileIdOrUrl, is_active: true }])
+    .select('*')
+    .single();
+
+  if (error) {
+    await ctx.reply(`⚠️ Gagal menyimpan QRIS: ${error.message}`);
+    return;
+  }
+
+  await ctx.reply(`✅ <b>Metode Pembayaran QRIS Gambar Ditambahkan!</b>\n━━━━━━━━━━━━━━━━━━━\nID      : <code>${data.id}</code>\nMetode  : <b>${name}</b>\nPemilik : ${accountName}\nGambar  : Terpasang 🖼️`, { parse_mode: 'HTML' });
 }
 
 export async function handleDeletePayment(ctx: Context) {
