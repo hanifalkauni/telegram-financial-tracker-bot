@@ -148,7 +148,7 @@ export async function handlePhotoMessage(ctx: Context) {
 
     // Check if caption explicitly indicates payment proof
     const captionLower = ('caption' in ctx.message && ctx.message.caption) ? ctx.message.caption.toLowerCase() : '';
-    if (captionLower.includes('/confirm') || captionLower.includes('confirm') || captionLower.includes('bukti') || captionLower.includes('transfer') || captionLower.includes('bayar')) {
+    if (captionLower.includes('/confirm') || captionLower.includes('confirm') || captionLower.includes('bukti') || captionLower.includes('bayar')) {
       await forwardPaymentProofToAdmin(ctx, optimalPhoto.file_id, telegramId, userName);
       await ctx.reply('📩 <b>Bukti pembayaran Anda telah dikirimkan ke Admin.</b>\n\nMohon tunggu verifikasi Admin (Status akun Anda akan aktif otomatis setelah di-approve).', { parse_mode: 'HTML' });
       return;
@@ -168,9 +168,10 @@ export async function handlePhotoMessage(ctx: Context) {
     const parsed = await parseTransactionFromImage(imageBuffer, 'image/jpeg');
 
     const chatId = ctx.chat?.id;
+    const access = await checkUserAccess(telegramId, userName);
 
-    // Check if AI detected that this is a Bank/QRIS Transfer Payment Proof
-    if (parsed.is_transfer_proof) {
+    // If user's account is EXPIRED and image is a transfer proof, auto-forward to Admin
+    if (!access.canProcess && parsed.is_transfer_proof) {
       await forwardPaymentProofToAdmin(ctx, optimalPhoto.file_id, telegramId, userName);
       const proofMsg = '📩 <b>Bukti transfer pembayaran Anda terdeteksi &amp; telah dikirimkan ke Admin untuk verifikasi!</b>\n\nMohon tunggu konfirmasi Admin (Status akun Anda akan aktif otomatis setelah di-approve).';
 
@@ -184,8 +185,7 @@ export async function handlePhotoMessage(ctx: Context) {
       return;
     }
 
-    // Otherwise, this is a Shopping Receipt. Check user access limits.
-    const access = await checkUserAccess(telegramId, userName);
+    // Check if account access expired for non-payment proof uploads
     if (!access.canProcess) {
       const expiredMsg = access.message || 'Access expired.';
       if (chatId && processingMsg) {
@@ -198,13 +198,14 @@ export async function handlePhotoMessage(ctx: Context) {
       return;
     }
 
+    // Account is Active or Admin: Process photo as an Expense transaction
     const compactPayload = encodeCompactTx(parsed);
 
     const pillarEmoji = parsed.financial_pillar === 'NEEDS' ? '🏠 NEEDS' : parsed.financial_pillar === 'WANTS' ? '🍿 WANTS' : '🏦 SAVINGS';
     const walletEmoji = parsed.wallet === 'E_WALLET' ? '📱 E_WALLET' : parsed.wallet === 'BANK' ? '🏦 BANK' : '💵 CASH';
     const typeEmoji = parsed.type === 'EXPENSE' ? '📤 EXPENSE' : '📥 INCOME';
 
-    const confirmationMsg = `🧾 <b>Hasil OCR Struk Belanja</b>
+    const confirmationMsg = `🧾 <b>Hasil OCR Struk / Bukti Transfer</b>
 ━━━━━━━━━━━━━━━━━━━
 📌 <b>Tipe</b>       : ${typeEmoji}
 💵 <b>Nominal</b>    : ${formatRupiah(parsed.amount)}
