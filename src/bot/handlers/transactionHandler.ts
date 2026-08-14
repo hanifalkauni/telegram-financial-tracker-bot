@@ -46,7 +46,7 @@ export async function handleTextMessage(ctx: Context) {
       return;
     }
 
-    // 5. Parse Transaction via Gemini AI
+    // 5. Parse Transaction via AI Engine
     await ctx.sendChatAction('typing');
     const parsed = await parseTransactionFromText(text);
 
@@ -109,7 +109,7 @@ export async function handlePhotoMessage(ctx: Context) {
     }
 
     await ctx.sendChatAction('upload_photo');
-    processingMsg = await ctx.reply('🔎 <i>Sedang membaca &amp; menganalisis foto struk belanjaan Anda via Gemini AI...</i>', { parse_mode: 'HTML' });
+    processingMsg = await ctx.reply('🔎 <i>Sedang membaca &amp; menganalisis foto struk belanjaan Anda...</i>', { parse_mode: 'HTML' });
 
     // Select optimal resolution photo (index length - 2 for 800px-1280px, fast download & crisp OCR)
     const photos = ctx.message.photo;
@@ -121,7 +121,7 @@ export async function handlePhotoMessage(ctx: Context) {
     const arrayBuffer = await response.arrayBuffer();
     const imageBuffer = Buffer.from(arrayBuffer);
 
-    // Parse image via Gemini Multimodal OCR
+    // Parse image via AI Multimodal OCR
     const parsed = await parseTransactionFromImage(imageBuffer, 'image/jpeg');
 
     const compactPayload = encodeCompactTx(parsed);
