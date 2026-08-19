@@ -188,8 +188,19 @@ export async function parseTransactionFromImage(imageBuffer: Buffer, mimeType: s
   const currentDateStr = getWIBDateString();
   const prompt = `Anda adalah OCR & vision parser AI keuangan. Analisis gambar ini. 
 1. Tentukan apakah gambar ini adalah BUKTI TRANSFER BANK / E-WALLET / QRIS (is_transfer_proof: true), ATAU STRUK/NOTA BELANJAAN biasa (is_transfer_proof: false).
-2. Ekstrak nominal, kategori, deskripsi, metode pembayaran, dan tanggal ke dalam format JSON terstruktur.
-Tanggal Hari Ini: ${currentDateStr} (WIB UTC+7). Jika tanggal tidak terdeteksi, gunakan ${currentDateStr}.`;
+2. Ekstrak data transaksi ke dalam format JSON berikut:
+{
+  "type": "EXPENSE" atau "INCOME",
+  "amount": nominal angka tanpa simbol Rp atau titik,
+  "category": "nama kategori (misal: Transfer, Makanan & Minuman, Tagihan, Belanja, Umum)",
+  "description": "deskripsi singkat transaksi",
+  "wallet": "CASH" atau "BANK" atau "E_WALLET",
+  "financial_pillar": "NEEDS" atau "WANTS" atau "SAVINGS",
+  "date": "YYYY-MM-DD",
+  "is_transfer_proof": true atau false
+}
+Tanggal Hari Ini: ${currentDateStr} (WIB UTC+7). Jika tanggal tidak terdeteksi, gunakan ${currentDateStr}.
+Jawab HANYA dengan JSON valid.`;
 
   return executeWithKeyFallback(
     async (ai, modelName) => {
@@ -206,20 +217,31 @@ Tanggal Hari Ini: ${currentDateStr} (WIB UTC+7). Jika tanggal tidak terdeteksi, 
         ],
         config: {
           responseMimeType: 'application/json',
-          responseSchema: responseSchema,
           temperature: 0.1,
         },
       });
 
-      const rawJson = response.text;
-      if (!rawJson) {
+      const rawText = response.text;
+      if (!rawText) {
         throw new Error('Gemini OCR returned an empty response.');
       }
 
-      return JSON.parse(rawJson) as ParsedTransaction;
+      const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleaned) as ParsedTransaction;
+
+      return {
+        type: parsed.type === 'INCOME' ? 'INCOME' : 'EXPENSE',
+        amount: Number(parsed.amount) || 0,
+        category: parsed.category || 'Umum',
+        description: parsed.description || null,
+        wallet: parsed.wallet === 'E_WALLET' ? 'E_WALLET' : parsed.wallet === 'CASH' ? 'CASH' : 'BANK',
+        financial_pillar: parsed.financial_pillar === 'WANTS' ? 'WANTS' : parsed.financial_pillar === 'SAVINGS' ? 'SAVINGS' : 'NEEDS',
+        date: parsed.date || currentDateStr,
+        is_transfer_proof: Boolean(parsed.is_transfer_proof),
+      };
     },
     ['gemini-3.6-flash', 'gemini-2.0-flash'],
-    15000
+    8000
   );
 }
 
