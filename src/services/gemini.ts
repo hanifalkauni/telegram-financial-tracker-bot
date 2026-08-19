@@ -87,7 +87,7 @@ function getGeminiInstances(): GoogleGenAI[] {
 
 async function executeWithKeyFallback<T>(
   fn: (ai: GoogleGenAI, modelName: string) => Promise<T>,
-  preferredModels: string[] = ['gemini-2.5-flash', 'gemini-2.0-flash'],
+  preferredModels: string[] = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'],
   timeoutPerAttemptMs: number = 7500
 ): Promise<T> {
   const instances = getGeminiInstances();
@@ -189,7 +189,7 @@ Input Teks Pengguna: "${text}"`;
 
       return JSON.parse(rawJson) as ParsedTransaction;
     },
-    ['gemini-2.5-flash', 'gemini-2.0-flash'],
+    ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'],
     7000
   );
 }
@@ -228,7 +228,7 @@ Tanggal Hari Ini: ${currentDateStr} (WIB UTC+7). Jika tanggal tidak terdeteksi, 
 
       return JSON.parse(rawJson) as ParsedTransaction;
     },
-    ['gemini-2.5-flash', 'gemini-2.0-flash'],
+    ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'],
     7500
   );
 }
@@ -252,7 +252,7 @@ Format jawaban dalam bentuk pesan Telegram dengan emoji yang menarik dan mudah d
 
       return response.text || 'Tidak dapat menghasilkan insight finansial saat ini.';
     },
-    ['gemini-2.5-flash', 'gemini-2.0-flash'],
+    ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'],
     7500
   );
 }
