@@ -144,8 +144,10 @@ export async function handlePhotoMessage(ctx: Context) {
     }
 
     const photos = ctx.message.photo;
-    // Always use highest resolution photo for maximum OCR readability
-    const optimalPhoto = photos[photos.length - 1];
+    // Pick optimal photo resolution (~800px-1280px) for fast download & high OCR accuracy
+    // Avoid downloading massive 4K raw photos (4-8MB) which slow down network transfer and Gemini AI base64 parsing
+    const photoIndex = photos.length > 2 ? photos.length - 2 : photos.length - 1;
+    const optimalPhoto = photos[photoIndex];
 
     // Check if caption explicitly indicates payment proof
     const captionLower = ('caption' in ctx.message && ctx.message.caption) ? ctx.message.caption.toLowerCase() : '';
@@ -158,7 +160,11 @@ export async function handlePhotoMessage(ctx: Context) {
     await ctx.sendChatAction('upload_photo').catch(() => {});
     processingMsg = await ctx.reply('🔎 <i>Sedang membaca &amp; menganalisis foto struk...</i>', { parse_mode: 'HTML' });
 
-    const fileLink = await ctx.telegram.getFileLink(optimalPhoto.file_id);
+    // Fetch file link and check user access in parallel to eliminate DB latency
+    const [fileLink, access] = await Promise.all([
+      ctx.telegram.getFileLink(optimalPhoto.file_id),
+      checkUserAccess(telegramId, userName),
+    ]);
 
     // Fetch image binary buffer
     const response = await fetch(fileLink.href);
@@ -169,7 +175,6 @@ export async function handlePhotoMessage(ctx: Context) {
     const parsed = await parseTransactionFromImage(imageBuffer, 'image/jpeg');
 
     const chatId = ctx.chat?.id;
-    const access = await checkUserAccess(telegramId, userName);
 
     // If user's account is EXPIRED and image is a transfer proof, auto-forward to Admin
     if (!access.canProcess && parsed.is_transfer_proof) {
