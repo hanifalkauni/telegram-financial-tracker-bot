@@ -155,10 +155,20 @@ export function decodeCompactTx(compactStr: string): ParsedTransaction {
 
 export async function parseTransactionFromText(text: string): Promise<ParsedTransaction> {
   const currentDateStr = getWIBDateString();
-  const prompt = `Anda adalah asisten AI keuangan pribadi. Ekstrak data transaksi dari teks berikut ke dalam format JSON sesuai schema.
+  const prompt = `Anda adalah asisten AI keuangan pribadi. Ekstrak data transaksi dari teks berikut ke dalam format JSON:
+{
+  "type": "EXPENSE" atau "INCOME",
+  "amount": angka nominal tanpa simbol Rp atau titik,
+  "category": "nama kategori (misal: Transfer, Makanan & Minuman, Tagihan, Belanja, Umum)",
+  "description": "deskripsi singkat",
+  "wallet": "CASH" atau "BANK" atau "E_WALLET",
+  "financial_pillar": "NEEDS" atau "WANTS" atau "SAVINGS",
+  "date": "YYYY-MM-DD",
+  "is_transfer_proof": false
+}
 Tanggal Hari Ini: ${currentDateStr} (WIB UTC+7). Jika pengguna tidak menyebutkan tanggal spesifik, gunakan tanggal hari ini (${currentDateStr}).
-
-Input Teks Pengguna: "${text}"`;
+Input Teks Pengguna: "${text}"
+Jawab HANYA dengan JSON valid.`;
 
   return executeWithKeyFallback(
     async (ai, modelName) => {
@@ -167,20 +177,31 @@ Input Teks Pengguna: "${text}"`;
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
-          responseSchema: responseSchema,
           temperature: 0.1,
         },
       });
 
-      const rawJson = response.text;
-      if (!rawJson) {
+      const rawText = response.text;
+      if (!rawText) {
         throw new Error('Gemini returned an empty response.');
       }
 
-      return JSON.parse(rawJson) as ParsedTransaction;
+      const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleaned) as ParsedTransaction;
+
+      return {
+        type: parsed.type === 'INCOME' ? 'INCOME' : 'EXPENSE',
+        amount: Number(parsed.amount) || 0,
+        category: parsed.category || 'Umum',
+        description: parsed.description || null,
+        wallet: parsed.wallet === 'E_WALLET' ? 'E_WALLET' : parsed.wallet === 'CASH' ? 'CASH' : 'BANK',
+        financial_pillar: parsed.financial_pillar === 'WANTS' ? 'WANTS' : parsed.financial_pillar === 'SAVINGS' ? 'SAVINGS' : 'NEEDS',
+        date: parsed.date || currentDateStr,
+        is_transfer_proof: Boolean(parsed.is_transfer_proof),
+      };
     },
     ['gemini-3.6-flash', 'gemini-2.0-flash'],
-    10000
+    5000
   );
 }
 
