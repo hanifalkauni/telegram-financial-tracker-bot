@@ -144,10 +144,15 @@ export async function handlePhotoMessage(ctx: Context) {
     }
 
     const photos = ctx.message.photo;
-    // Pick optimal photo resolution (~800px-1280px) for fast download & high OCR accuracy
+    // Pick optimal photo resolution (~500px-1280px) for fast download & high OCR accuracy
     // Avoid downloading massive 4K raw photos (4-8MB) which slow down network transfer and Gemini AI base64 parsing
-    const photoIndex = photos.length > 2 ? photos.length - 2 : photos.length - 1;
-    const optimalPhoto = photos[photoIndex];
+    let optimalPhoto = photos[photos.length - 1];
+    for (const p of photos) {
+      if (p.width && p.width >= 500 && p.width <= 1280) {
+        optimalPhoto = p;
+        break;
+      }
+    }
 
     // Check if caption explicitly indicates payment proof
     const captionLower = ('caption' in ctx.message && ctx.message.caption) ? ctx.message.caption.toLowerCase() : '';

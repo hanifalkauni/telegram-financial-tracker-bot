@@ -87,30 +87,20 @@ function getGeminiInstances(): GoogleGenAI[] {
 
 async function executeWithKeyFallback<T>(
   fn: (ai: GoogleGenAI, modelName: string) => Promise<T>,
-  preferredModels: string[] = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'],
-  timeoutPerAttemptMs: number = 7500
+  preferredModels: string[] = ['gemini-3.6-flash', 'gemini-2.0-flash'],
+  timeoutPerAttemptMs: number = 15000
 ): Promise<T> {
   const instances = getGeminiInstances();
   const errors: string[] = [];
 
   for (let i = 0; i < instances.length; i++) {
     for (const modelName of preferredModels) {
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        try {
-          return await withTimeout(fn(instances[i], modelName), timeoutPerAttemptMs);
-        } catch (error: any) {
-          const errMsg = error?.message || String(error);
-          errors.push(`[Key ${i + 1} | ${modelName} | Attempt ${attempt}]: ${errMsg}`);
-          const is503 = errMsg.includes('503') || errMsg.includes('UNAVAILABLE') || errMsg.includes('high demand');
-
-          if (is503 && attempt < 2) {
-            console.warn(`[GEMINI 503 RETRY] Key ${i + 1}, Model ${modelName}, Attempt ${attempt} failed with 503. Retrying in 300ms...`);
-            await sleep(300);
-          } else {
-            console.warn(`[GEMINI FALLBACK] Key ${i + 1}, Model ${modelName} failed: ${errMsg}. Trying next model/key...`);
-            break;
-          }
-        }
+      try {
+        return await withTimeout(fn(instances[i], modelName), timeoutPerAttemptMs);
+      } catch (error: any) {
+        const errMsg = error?.message || String(error);
+        errors.push(`[Key ${i + 1} | ${modelName}]: ${errMsg}`);
+        console.warn(`[GEMINI FALLBACK] Key ${i + 1}, Model ${modelName} failed: ${errMsg}. Trying next model/key...`);
       }
     }
   }
@@ -189,8 +179,8 @@ Input Teks Pengguna: "${text}"`;
 
       return JSON.parse(rawJson) as ParsedTransaction;
     },
-    ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'],
-    7000
+    ['gemini-3.6-flash', 'gemini-2.0-flash'],
+    10000
   );
 }
 
@@ -228,8 +218,8 @@ Tanggal Hari Ini: ${currentDateStr} (WIB UTC+7). Jika tanggal tidak terdeteksi, 
 
       return JSON.parse(rawJson) as ParsedTransaction;
     },
-    ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'],
-    7500
+    ['gemini-3.6-flash', 'gemini-2.0-flash'],
+    15000
   );
 }
 
@@ -252,7 +242,7 @@ Format jawaban dalam bentuk pesan Telegram dengan emoji yang menarik dan mudah d
 
       return response.text || 'Tidak dapat menghasilkan insight finansial saat ini.';
     },
-    ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'],
-    7500
+    ['gemini-3.6-flash', 'gemini-2.0-flash'],
+    10000
   );
 }
