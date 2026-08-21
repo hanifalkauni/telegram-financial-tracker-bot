@@ -38,24 +38,6 @@ import { handleCallbackQuery } from './callbacks/callbackHandler.js';
 export function createUserBot(token: string) {
   const bot = new Telegraf(token);
 
-  // Set Telegram Menu Commands
-  bot.telegram
-    .setMyCommands([
-      { command: 'start', description: 'Memulai bot & melihat status' },
-      { command: 'status', description: 'Cek profil, sisa trial & Telegram ID' },
-      { command: 'rekap', description: 'Rekapitulasi laporan keuangan bulanan' },
-      { command: 'ratio', description: 'Atur target rasio 50/30/20' },
-      { command: 'insight', description: 'Analisis cerdas AI rekomendasi keuangan' },
-      { command: 'rutin', description: 'Kelola transaksi tagihan rutin bulanan' },
-      { command: 'history', description: 'Lihat 10 transaksi terakhir' },
-      { command: 'export', description: 'Download laporan CSV/Excel' },
-      { command: 'budget', description: 'Atur batas anggaran pengeluaran bulanan' },
-      { command: 'subscribe', description: 'Permintaan berlangganan ke Admin' },
-      { command: 'confirm', description: 'Kirim foto bukti transfer pembayaran' },
-      { command: 'help', description: 'Panduan lengkap penggunaan bot' },
-    ])
-    .catch(() => {});
-
   // Register Commands
   bot.command('start', handleStart);
   bot.command('status', handleStatus);
@@ -89,25 +71,6 @@ export function createUserBot(token: string) {
 
 export function createAdminBot(token: string) {
   const bot = new Telegraf(token);
-
-  bot.telegram
-    .setMyCommands([
-      { command: 'start', description: 'Panel Utama Admin SetorSini' },
-      { command: 'admin_stats', description: 'Statistik pengguna & transaksi' },
-      { command: 'users', description: 'Lihat 20 daftar pengguna & Telegram ID' },
-      { command: 'payments', description: 'Kelola metode pembayaran BCA/Mandiri/QRIS' },
-      { command: 'add_payment', description: 'Tambah rekening/metode pembayaran baru' },
-      { command: 'add_qris', description: 'Upload gambar barcode QRIS baru' },
-      { command: 'delete_payment', description: 'Hapus metode pembayaran by ID' },
-      { command: 'packages', description: 'Kelola paket berlangganan' },
-      { command: 'add_package', description: 'Tambah paket berlangganan baru' },
-      { command: 'delete_package', description: 'Hapus paket berlangganan by ID' },
-      { command: 'generate_code', description: 'Buat Kode Konfirmasi (30/365/Lifetime)' },
-      { command: 'reply', description: 'Balas tiket pesan pengguna (/reply <id> <pesan>)' },
-      { command: 'extend', description: 'Perpanjang langganan user manual' },
-      { command: 'broadcast', description: 'Kirim pesan pengumuman masal' },
-    ])
-    .catch(() => {});
 
   bot.command('start', handleAdminStart);
   bot.command('reply', handleAdminReply);
@@ -143,3 +106,6 @@ export function createAdminBot(token: string) {
 }
 
 export const userBot = createUserBot(ENV.BOT_TOKEN);
+export const adminBot = (ENV.ADMIN_BOT_TOKEN && ENV.ADMIN_BOT_TOKEN !== ENV.BOT_TOKEN)
+  ? createAdminBot(ENV.ADMIN_BOT_TOKEN)
+  : userBot;

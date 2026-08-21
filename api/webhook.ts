@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { userBot, createAdminBot } from '../src/bot/bot.js';
+import { userBot, adminBot } from '../src/bot/bot.js';
 import { ENV, validateEnv } from '../src/config/env.js';
 
 validateEnv();
@@ -30,12 +30,15 @@ const landingPageHtml = `<!DOCTYPE html>
     <h1>SetorSini AI Bot</h1>
     <p>Serverless Webhook Engine & Telegram AI Financial Tracker Bot is running smoothly on Vercel.</p>
     <div class="info-box">POST /api/webhook ➔ Webhook Ready</div>
-    <div class="footer">Powered by Node.js • Telegraf.js • Gemini 2.5 Flash • Supabase</div>
+    <div class="footer">Powered by Node.js • Telegraf.js • Gemini 3.6 Flash • Supabase</div>
   </div>
 </body>
 </html>`;
 
-export default async function handler(req: IncomingMessage & { body?: any; query?: any }, res: ServerResponse & { status?: (code: number) => any; json?: (data: any) => any; send?: (data: any) => any }) {
+export default async function handler(
+  req: IncomingMessage & { body?: any; query?: any },
+  res: ServerResponse & { status?: (code: number) => any; json?: (data: any) => any; send?: (data: any) => any }
+) {
   const sendJson = (statusCode: number, payload: any) => {
     res.statusCode = statusCode;
     res.setHeader('Content-Type', 'application/json');
@@ -63,7 +66,29 @@ export default async function handler(req: IncomingMessage & { body?: any; query
   }
 
   try {
-    const update = req.body;
+    let update = req.body;
+
+    if (typeof update === 'string') {
+      try {
+        update = JSON.parse(update);
+      } catch (e) {
+        console.error('[WEBHOOK JSON PARSE ERROR]:', e);
+      }
+    } else if (!update) {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) {
+        chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+      }
+      const rawBody = Buffer.concat(chunks).toString('utf-8');
+      if (rawBody) {
+        try {
+          update = JSON.parse(rawBody);
+        } catch (e) {
+          console.error('[WEBHOOK STREAM JSON PARSE ERROR]:', e);
+        }
+      }
+    }
+
     if (!update) {
       return sendHtml(400, '<h1>400 Bad Request</h1><p>No update payload received.</p>');
     }
@@ -73,13 +98,9 @@ export default async function handler(req: IncomingMessage & { body?: any; query
     const fullUrl = new URL(reqUrl.startsWith('http') ? reqUrl : `https://localhost${reqUrl}`);
     const isAdminRoute = fullUrl.searchParams.get('bot') === 'admin' || req.query?.bot === 'admin';
 
-    // Determine whether update is for Admin Bot or User Bot
-    if (ENV.ADMIN_BOT_TOKEN && ENV.ADMIN_BOT_TOKEN !== ENV.BOT_TOKEN && isAdminRoute) {
-      const adminBotInstance = createAdminBot(ENV.ADMIN_BOT_TOKEN);
-      await adminBotInstance.handleUpdate(update);
-    } else {
-      await userBot.handleUpdate(update);
-    }
+    // Route update to Admin Bot or User Bot
+    const targetBot = isAdminRoute ? adminBot : userBot;
+    await targetBot.handleUpdate(update);
 
     return sendJson(200, { ok: true });
   } catch (error) {

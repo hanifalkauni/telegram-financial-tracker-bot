@@ -182,8 +182,11 @@ export async function handlePhotoMessage(ctx: Context) {
       checkUserAccess(telegramId, userName),
     ]);
 
-    // Fetch image binary buffer
-    const response = await fetch(fileLink.href);
+    // Fetch image binary buffer with 8s timeout
+    const response = await fetch(fileLink.href, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) {
+      throw new Error(`Gagal mendownload foto dari server Telegram: HTTP ${response.status}`);
+    }
     const arrayBuffer = await response.arrayBuffer();
     const imageBuffer = Buffer.from(arrayBuffer);
 
