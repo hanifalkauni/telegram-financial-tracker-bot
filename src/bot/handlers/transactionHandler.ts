@@ -145,18 +145,15 @@ Apakah data di atas sudah benar?`;
 }
 
 export async function handlePhotoMessage(ctx: Context) {
-  if (!ctx.message || !('photo' in ctx.message)) return;
+  if (!ctx.message) return;
   const telegramId = ctx.from?.id;
   const userName = ctx.from?.first_name || 'User';
 
   if (!telegramId) return;
 
-  let processingMsg: any = null;
-
-  try {
+  let fileId = '';
+  if ('photo' in ctx.message && ctx.message.photo && ctx.message.photo.length > 0) {
     const photos = ctx.message.photo;
-    // Pick optimal photo resolution (~500px-1280px) for fast download & high OCR accuracy
-    // Avoid downloading massive 4K raw photos (4-8MB) which slow down network transfer and Gemini AI base64 parsing
     let optimalPhoto = photos[photos.length - 1];
     for (const p of photos) {
       if (p.width && p.width >= 500 && p.width <= 1280) {
@@ -164,11 +161,20 @@ export async function handlePhotoMessage(ctx: Context) {
         break;
       }
     }
+    fileId = optimalPhoto.file_id;
+  } else if ('document' in ctx.message && ctx.message.document) {
+    fileId = ctx.message.document.file_id;
+  }
 
+  if (!fileId) return;
+
+  let processingMsg: any = null;
+
+  try {
     // Check if caption explicitly indicates payment proof
     const captionLower = ('caption' in ctx.message && ctx.message.caption) ? ctx.message.caption.toLowerCase() : '';
     if (captionLower.includes('/confirm') || captionLower.includes('confirm') || captionLower.includes('bukti') || captionLower.includes('bayar')) {
-      await forwardPaymentProofToAdmin(ctx, optimalPhoto.file_id, telegramId, userName);
+      await forwardPaymentProofToAdmin(ctx, fileId, telegramId, userName);
       await ctx.reply('📩 <b>Bukti pembayaran Anda telah dikirimkan ke Admin.</b>\n\nMohon tunggu verifikasi Admin (Status akun Anda akan aktif otomatis setelah di-approve).', { parse_mode: 'HTML' });
       return;
     }
@@ -178,7 +184,7 @@ export async function handlePhotoMessage(ctx: Context) {
 
     // Fetch file link and check user access in parallel to eliminate DB latency
     const [fileLink, access] = await Promise.all([
-      ctx.telegram.getFileLink(optimalPhoto.file_id),
+      ctx.telegram.getFileLink(fileId),
       checkUserAccess(telegramId, userName),
     ]);
 
@@ -197,7 +203,7 @@ export async function handlePhotoMessage(ctx: Context) {
 
     // If user's account is EXPIRED and image is a transfer proof, auto-forward to Admin
     if (!access.canProcess && parsed.is_transfer_proof) {
-      await forwardPaymentProofToAdmin(ctx, optimalPhoto.file_id, telegramId, userName);
+      await forwardPaymentProofToAdmin(ctx, fileId, telegramId, userName);
       const proofMsg = '📩 <b>Bukti transfer pembayaran Anda terdeteksi &amp; telah dikirimkan ke Admin untuk verifikasi!</b>\n\nMohon tunggu konfirmasi Admin (Status akun Anda akan aktif otomatis setelah di-approve).';
 
       if (chatId && processingMsg) {

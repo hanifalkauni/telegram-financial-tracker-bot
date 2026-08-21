@@ -88,8 +88,8 @@ function getGeminiInstances(): GoogleGenAI[] {
 
 async function executeWithKeyFallback<T>(
   fn: (ai: GoogleGenAI, modelName: string) => Promise<T>,
-  preferredModels: string[] = ['gemini-3.6-flash', 'gemini-2.0-flash'],
-  timeoutPerAttemptMs: number = 9000
+  preferredModels: string[] = ['gemini-2.0-flash', 'gemini-3.6-flash'],
+  timeoutPerAttemptMs: number = 8000
 ): Promise<{ result: T; durationMs: number; modelUsed: string }> {
   const instances = getGeminiInstances();
   const errors: string[] = [];
@@ -219,6 +219,7 @@ Jawab HANYA dengan JSON valid.`;
         config: {
           responseMimeType: 'application/json',
           temperature: 0.1,
+          maxOutputTokens: 250,
         },
       });
 
@@ -236,8 +237,8 @@ Jawab HANYA dengan JSON valid.`;
         is_transfer_proof: Boolean(parsed.is_transfer_proof),
       } as ParsedTransaction;
     },
-    ['gemini-3.6-flash', 'gemini-2.0-flash'],
-    9000
+    ['gemini-2.0-flash', 'gemini-3.6-flash'],
+    7000
   );
 
   sendProcessLogToAdmin(
@@ -283,6 +284,7 @@ Jawab HANYA dengan JSON valid.`;
         config: {
           responseMimeType: 'application/json',
           temperature: 0.1,
+          maxOutputTokens: 300,
         },
       });
 
@@ -300,8 +302,8 @@ Jawab HANYA dengan JSON valid.`;
         is_transfer_proof: Boolean(parsed.is_transfer_proof),
       } as ParsedTransaction;
     },
-    ['gemini-3.6-flash', 'gemini-2.0-flash'],
-    12000
+    ['gemini-2.0-flash', 'gemini-3.6-flash'],
+    8000
   );
 
   const kbSize = (imageBuffer.length / 1024).toFixed(1);

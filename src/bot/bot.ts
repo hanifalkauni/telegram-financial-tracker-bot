@@ -65,6 +65,12 @@ export function createUserBot(token: string) {
       handlePhotoMessage(ctx);
     }
   });
+  bot.on('document', (ctx) => {
+    const doc = ctx.message && 'document' in ctx.message ? ctx.message.document : null;
+    if (doc && doc.mime_type && doc.mime_type.startsWith('image/')) {
+      handlePhotoMessage(ctx);
+    }
+  });
 
   return bot;
 }
@@ -93,6 +99,12 @@ export function createAdminBot(token: string) {
     if (ctx.message && 'caption' in ctx.message && ctx.message.caption?.startsWith('/add_qris')) {
       handleAddQris(ctx);
     } else {
+      handlePhotoMessage(ctx);
+    }
+  });
+  bot.on('document', (ctx) => {
+    const doc = ctx.message && 'document' in ctx.message ? ctx.message.document : null;
+    if (doc && doc.mime_type && doc.mime_type.startsWith('image/')) {
       handlePhotoMessage(ctx);
     }
   });
