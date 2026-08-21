@@ -4,6 +4,9 @@ import { ENV, validateEnv } from '../src/config/env.js';
 
 validateEnv();
 
+export const maxDuration = 60; // Set maximum Serverless execution time to 60 seconds (Vercel Hobby limit)
+export const dynamic = 'force-dynamic';
+
 const landingPageHtml = `<!DOCTYPE html>
 <html lang="id">
 <head>
