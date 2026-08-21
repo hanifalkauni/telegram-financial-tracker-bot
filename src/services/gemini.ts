@@ -114,7 +114,40 @@ async function executeWithKeyFallback<T>(
 
   const overallDuration = Date.now() - overallStart;
   const primaryError = errors[0] || 'Unknown Gemini error';
+  
+  sendProcessLogToAdmin(
+    'Gemini API Failure',
+    overallDuration,
+    `🔴 <b>FAILED</b> | ${primaryError.slice(0, 100)}`
+  ).catch(() => {});
+
   throw new Error(`Gemini API call failed for all keys/models after ${overallDuration}ms. Primary error: ${primaryError}`);
+}
+
+function extractJsonFromText(rawText: string): any {
+  if (!rawText) throw new Error('Gemini returned an empty response.');
+
+  try {
+    return JSON.parse(rawText.trim());
+  } catch {}
+
+  const matchCodeBlock = rawText.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (matchCodeBlock && matchCodeBlock[1]) {
+    try {
+      return JSON.parse(matchCodeBlock[1].trim());
+    } catch {}
+  }
+
+  const firstBrace = rawText.indexOf('{');
+  const lastBrace = rawText.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    const jsonSub = rawText.slice(firstBrace, lastBrace + 1);
+    try {
+      return JSON.parse(jsonSub);
+    } catch {}
+  }
+
+  throw new Error(`Failed to parse JSON: ${rawText.slice(0, 100)}`);
 }
 
 export function encodeCompactTx(tx: ParsedTransaction): string {
@@ -189,13 +222,8 @@ Jawab HANYA dengan JSON valid.`;
         },
       });
 
-      const rawText = response.text;
-      if (!rawText) {
-        throw new Error('Gemini returned an empty response.');
-      }
-
-      const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleaned) as ParsedTransaction;
+      const rawText = response.text || '';
+      const parsed = extractJsonFromText(rawText) as ParsedTransaction;
 
       return {
         type: parsed.type === 'INCOME' ? 'INCOME' : 'EXPENSE',
@@ -258,13 +286,8 @@ Jawab HANYA dengan JSON valid.`;
         },
       });
 
-      const rawText = response.text;
-      if (!rawText) {
-        throw new Error('Gemini OCR returned an empty response.');
-      }
-
-      const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleaned) as ParsedTransaction;
+      const rawText = response.text || '';
+      const parsed = extractJsonFromText(rawText) as ParsedTransaction;
 
       return {
         type: parsed.type === 'INCOME' ? 'INCOME' : 'EXPENSE',
