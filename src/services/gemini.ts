@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { ENV } from '../config/env.js';
 import { getWIBDateString } from '../utils/timezone.js';
+import { sendProcessLogToAdmin } from '../utils/errorAlert.js';
 
 export interface ParsedTransaction {
   type: 'EXPENSE' | 'INCOME';
@@ -88,25 +89,32 @@ function getGeminiInstances(): GoogleGenAI[] {
 async function executeWithKeyFallback<T>(
   fn: (ai: GoogleGenAI, modelName: string) => Promise<T>,
   preferredModels: string[] = ['gemini-3.6-flash', 'gemini-2.0-flash'],
-  timeoutPerAttemptMs: number = 15000
-): Promise<T> {
+  timeoutPerAttemptMs: number = 9000
+): Promise<{ result: T; durationMs: number; modelUsed: string }> {
   const instances = getGeminiInstances();
   const errors: string[] = [];
+  const overallStart = Date.now();
 
   for (let i = 0; i < instances.length; i++) {
     for (const modelName of preferredModels) {
+      const attemptStart = Date.now();
       try {
-        return await withTimeout(fn(instances[i], modelName), timeoutPerAttemptMs);
+        const res = await withTimeout(fn(instances[i], modelName), timeoutPerAttemptMs);
+        const durationMs = Date.now() - attemptStart;
+        console.log(`[GEMINI SUCCESS] Model: ${modelName}, Key: ${i + 1}, Duration: ${durationMs}ms`);
+        return { result: res, durationMs, modelUsed: modelName };
       } catch (error: any) {
+        const attemptDuration = Date.now() - attemptStart;
         const errMsg = error?.message || String(error);
-        errors.push(`[Key ${i + 1} | ${modelName}]: ${errMsg}`);
-        console.warn(`[GEMINI FALLBACK] Key ${i + 1}, Model ${modelName} failed: ${errMsg}. Trying next model/key...`);
+        errors.push(`[Key ${i + 1} | ${modelName} | ${attemptDuration}ms]: ${errMsg}`);
+        console.warn(`[GEMINI FALLBACK] Key ${i + 1}, Model ${modelName} failed after ${attemptDuration}ms: ${errMsg}. Trying next model/key...`);
       }
     }
   }
 
+  const overallDuration = Date.now() - overallStart;
   const primaryError = errors[0] || 'Unknown Gemini error';
-  throw new Error(`Gemini API call failed for all configured keys/models. Primary model error: ${primaryError}`);
+  throw new Error(`Gemini API call failed for all keys/models after ${overallDuration}ms. Primary error: ${primaryError}`);
 }
 
 export function encodeCompactTx(tx: ParsedTransaction): string {
@@ -170,7 +178,7 @@ Tanggal Hari Ini: ${currentDateStr} (WIB UTC+7). Jika pengguna tidak menyebutkan
 Input Teks Pengguna: "${text}"
 Jawab HANYA dengan JSON valid.`;
 
-  return executeWithKeyFallback(
+  const { result, durationMs, modelUsed } = await executeWithKeyFallback(
     async (ai, modelName) => {
       const response = await ai.models.generateContent({
         model: modelName,
@@ -198,11 +206,19 @@ Jawab HANYA dengan JSON valid.`;
         financial_pillar: parsed.financial_pillar === 'WANTS' ? 'WANTS' : parsed.financial_pillar === 'SAVINGS' ? 'SAVINGS' : 'NEEDS',
         date: parsed.date || currentDateStr,
         is_transfer_proof: Boolean(parsed.is_transfer_proof),
-      };
+      } as ParsedTransaction;
     },
     ['gemini-3.6-flash', 'gemini-2.0-flash'],
-    5000
+    9000
   );
+
+  sendProcessLogToAdmin(
+    'Teks Transaksi',
+    durationMs,
+    `Model: <code>${modelUsed}</code> | Input: "${text.slice(0, 35)}${text.length > 35 ? '...' : ''}"`
+  ).catch(() => {});
+
+  return result;
 }
 
 export async function parseTransactionFromImage(imageBuffer: Buffer, mimeType: string = 'image/jpeg'): Promise<ParsedTransaction> {
@@ -223,7 +239,7 @@ export async function parseTransactionFromImage(imageBuffer: Buffer, mimeType: s
 Tanggal Hari Ini: ${currentDateStr} (WIB UTC+7). Jika tanggal tidak terdeteksi, gunakan ${currentDateStr}.
 Jawab HANYA dengan JSON valid.`;
 
-  return executeWithKeyFallback(
+  const { result, durationMs, modelUsed } = await executeWithKeyFallback(
     async (ai, modelName) => {
       const response = await ai.models.generateContent({
         model: modelName,
@@ -259,11 +275,20 @@ Jawab HANYA dengan JSON valid.`;
         financial_pillar: parsed.financial_pillar === 'WANTS' ? 'WANTS' : parsed.financial_pillar === 'SAVINGS' ? 'SAVINGS' : 'NEEDS',
         date: parsed.date || currentDateStr,
         is_transfer_proof: Boolean(parsed.is_transfer_proof),
-      };
+      } as ParsedTransaction;
     },
     ['gemini-3.6-flash', 'gemini-2.0-flash'],
-    8000
+    12000
   );
+
+  const kbSize = (imageBuffer.length / 1024).toFixed(1);
+  sendProcessLogToAdmin(
+    'OCR Struk Foto',
+    durationMs,
+    `Model: <code>${modelUsed}</code> | Size: ${kbSize} KB`
+  ).catch(() => {});
+
+  return result;
 }
 
 export async function generateAIInsight(summaryData: string): Promise<string> {
@@ -273,7 +298,7 @@ ${summaryData}
 
 Format jawaban dalam bentuk pesan Telegram dengan emoji yang menarik dan mudah dibaca. Maksimal 3 poin rekomendasi.`;
 
-  return executeWithKeyFallback(
+  const { result, durationMs, modelUsed } = await executeWithKeyFallback(
     async (ai, modelName) => {
       const response = await ai.models.generateContent({
         model: modelName,
@@ -286,6 +311,14 @@ Format jawaban dalam bentuk pesan Telegram dengan emoji yang menarik dan mudah d
       return response.text || 'Tidak dapat menghasilkan insight finansial saat ini.';
     },
     ['gemini-3.6-flash', 'gemini-2.0-flash'],
-    10000
+    9000
   );
+
+  sendProcessLogToAdmin(
+    'AI Financial Insight',
+    durationMs,
+    `Model: <code>${modelUsed}</code>`
+  ).catch(() => {});
+
+  return result;
 }
