@@ -6,6 +6,23 @@ import { supabase } from '../../db/supabase.js';
 import { formatRupiah } from '../../utils/timezone.js';
 import { sendErrorAlert } from '../../utils/errorAlert.js';
 
+const withSafetyTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Timeout: Pemrosesan gambar melebihi ${ms}ms`));
+    }, ms);
+    promise
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+};
+
 export async function forwardPaymentProofToAdmin(ctx: Context, photoFileId: string, telegramId: number, name: string) {
   try {
     const adminBotToken = ENV.ADMIN_BOT_TOKEN || ENV.BOT_TOKEN;
@@ -137,12 +154,6 @@ export async function handlePhotoMessage(ctx: Context) {
   let processingMsg: any = null;
 
   try {
-    const rateCheck = checkRateLimit(telegramId);
-    if (!rateCheck.allowed) {
-      await ctx.reply(`⚠️ <b>Mohon tunggu ${rateCheck.waitSeconds} detik</b> sebelum mengirim foto struk berikutnya.`, { parse_mode: 'HTML' });
-      return;
-    }
-
     const photos = ctx.message.photo;
     // Pick optimal photo resolution (~500px-1280px) for fast download & high OCR accuracy
     // Avoid downloading massive 4K raw photos (4-8MB) which slow down network transfer and Gemini AI base64 parsing
